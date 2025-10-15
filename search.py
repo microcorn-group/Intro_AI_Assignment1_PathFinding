@@ -231,14 +231,111 @@ def astar(nodes, edges, start, goal):
 
     return None, count, [], visited_order
 
-# ------------------------------
-# CUSTOM METHODS (REUSE EXISTING)
-# ------------------------------
 def custom_uninformed(edges, start, goal):
-    return dfs(edges, start, goal)
+    """
+    Custom uninformed search using a priority queue ordered by accumulated path cost.
 
-def custom_informed(nodes, edges, start, goal):
-    return astar(nodes, edges, start, goal)
+    This function behaves similarly to Dijkstra's algorithm (uniform-cost search), but
+    is tailored for the assignment as a custom uninformed method. Key points:
+
+    - Uses a min-heap (`frontier`) where each entry is a tuple:
+        (accumulated_cost, creation_order, node, path)
+      `accumulated_cost` (g) is the total cost from the start node to `node`.
+      `creation_order` is a tiebreaker to ensure a stable ordering when costs tie.
+      `path` stores the nodes visited along the route to `node` for easy reconstruction.
+
+    - `base_cost_to_node` keeps the best-known cost to reach each node; a newly
+      discovered (or better) path updates this map and pushes a new entry onto the heap.
+
+    - `visited_order` records the order nodes are popped from the frontier. This is
+      useful for visualization/animation of the search process.
+
+    - The function returns a 4-tuple:
+        (goal_node_or_None, nodes_expanded_count, path_list, visited_order)
+
+    Note: `goal` may contain multiple targets; this implementation checks membership
+    (node in goal) so it will accept any of the provided destinations.
+    """
+
+    # Counter used to break ties in the heap when two entries have the same cost
+    creation_counter = 0
+    frontier = []
+    # Track the best known cost to each node (g-values). Initialize start with cost 0.
+    base_cost_to_node = {start: 0}
+
+    # Push the start node onto the heap. Heap entries: (g, order, node, path)
+    heapq.heappush(frontier, (0, creation_counter, start, [start]))
+
+    visited_order = []
+    count = 0
+
+    while frontier:
+        # Pop the lowest-cost entry
+        g, _, node, path = heapq.heappop(frontier)
+        count += 1
+        visited_order.append(node)
+
+        # If this node is one of the goals, return immediately with the path found
+        if node in goal:
+            return node, count, path, visited_order
+
+        # Expand neighbours in numeric order for deterministic behavior (keys are node ids)
+        for neighbor, cost_to_neighbor in sorted(edges.get(node, []), key=lambda x: int(x[0])):
+            g2 = g + cost_to_neighbor
+            # If we found a cheaper path to neighbor, record it and push to frontier
+            if g2 < base_cost_to_node.get(neighbor, float('inf')):
+                creation_counter += 1
+                base_cost_to_node[neighbor] = g2
+                heapq.heappush(frontier, (g2, creation_counter, neighbor, path + [neighbor]))
+
+    # No path found
+    return None, count, [], visited_order
+
+def custom_informed(nodes, edges, start, goal, weight=2.0):
+    """
+    Custom informed search using A* with a weighted heuristic.
+
+    This function is a variant of the A* search algorithm, modified to use a weighted
+    heuristic. The weight parameter allows tuning the influence of the heuristic on
+    the search process. A higher weight biases the search more towards the heuristic,
+    potentially speeding up the search at the cost of optimality.
+    - Uses a min-heap (`frontier`) where each entry is a tuple:
+        (f, g, node, path)
+      `f` is the total estimated cost (g + weight * h).
+      `g` is the accumulated cost from the start node to `node`.
+      `path` stores the nodes visited along the route to `node` for easy reconstruction.
+    - `visited` keeps track of the best-known cost to reach each node; a newly
+      discovered (or better) path updates this map and pushes a new entry onto the heap.
+    - `visited_order` records the order nodes are popped from the frontier. This is
+        useful for visualization/animation of the search process.
+    - The function returns a 4-tuple:
+        (goal_node_or_None, nodes_expanded_count, path_list, visited_order)
+    Note: `goal` may contain multiple targets; this implementation checks membership
+    (node in goal) so it will accept any of the provided destinations.
+    """
+
+    goal = goal[0]
+    frontier = []
+    heapq.heappush(frontier, (0, 0, start, [start]))
+    visited = {}
+    visited_order = []
+    count = 0
+
+    while frontier:
+        f, g, node, path = heapq.heappop(frontier)
+        count += 1
+        visited_order.append(node)
+
+        if node == goal:
+            return node, count, path, visited_order
+        if node not in visited or g < visited[node]:
+            visited[node] = g
+            for neighbor, cost in sorted(edges.get(node, [])):
+                g2 = g + cost
+                h = heuristic(neighbor, goal, nodes)
+                f2 = g2 + weight * h
+                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor]))
+    return None, count, [], visited_order
 
 # ------------------------------
 # MAIN EXECUTION
@@ -270,6 +367,7 @@ if __name__ == "__main__":
     if goal:
         print_results(filename, method, goal, count, path)
         visualize_search(nodes, edges, visited_order, path, method, origin, destinations)
+        
     else:
         print(f"{filename} {method}\nNo path found.")
 # ------------------------------

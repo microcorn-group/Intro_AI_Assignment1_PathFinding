@@ -61,8 +61,8 @@ Supported methods (case-insensitive):
 - `BFS` — Breadth-First Search
 - `GBFS` — Greedy Best-First Search
 - `A*` or `AS` — A* Search
-- `CUS1` — Alias for custom uninformed method (DFS)
-- `CUS2` — Alias for custom informed method (A*, currently)
+- `CUS1` — Custom uninformed method (uniform-cost / Dijkstra-like search). Uses accumulated path cost ordering.
+- `CUS2` — Custom informed method (wrapper for A*). Uses Euclidean distance as the heuristic and currently uses the first listed destination for heuristic computations when multiple destinations are provided.
 
 Example (PowerShell):
 
