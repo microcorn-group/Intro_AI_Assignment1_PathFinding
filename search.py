@@ -4,6 +4,8 @@ from collections import deque
 import heapq
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.widgets import Button
+from matplotlib.patches import FancyBboxPatch
 
 # ------------------------------
 # LOAD GRAPH DATA
@@ -69,66 +71,348 @@ def print_results(filename, method, goal, num_nodes, path):
     print(" -> ".join(path))
 
 # ------------------------------
-# VISUALIZATION (Combined Graph + Animation)
+# INTERACTIVE VISUALIZATION WITH UI CONTROLS
 # ------------------------------
-def visualize_search(nodes, edges, visited_order, path, method_name, start, goals):
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.grid(True)
-    ax.set_title(f"Route Finding using {method_name}")
+def visualize_search(nodes, edges, visited_order, path, method_name, start, goals, filename=None):
+    # Create figure with extra space for controls
+    fig = plt.figure(figsize=(14, 9))
+    fig.patch.set_facecolor('#F5F5F5')
+    
+    # Main graph axes
+    ax = plt.subplot2grid((12, 12), (0, 0), colspan=12, rowspan=9)
+    ax.set_facecolor('#FFFFFF')
+    ax.set_xlabel("X Coordinate", fontsize=12, fontweight='bold', color='#333333')
+    ax.set_ylabel("Y Coordinate", fontsize=12, fontweight='bold', color='#333333')
+    ax.grid(True, alpha=0.25, linestyle='--', linewidth=0.8, color='#CCCCCC')
+    
+    # Set axis limits with padding
+    x_coords = [coord[0] for coord in nodes.values()]
+    y_coords = [coord[1] for coord in nodes.values()]
+    x_margin = (max(x_coords) - min(x_coords)) * 0.2 or 1
+    y_margin = (max(y_coords) - min(y_coords)) * 0.2 or 1
+    ax.set_xlim(min(x_coords) - x_margin, max(x_coords) + x_margin)
+    ax.set_ylim(min(y_coords) - y_margin, max(y_coords) + y_margin)
+    
+    # Add subtle border to the plot area
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#BBBBBB')
+        spine.set_linewidth(1.5)
+
+    # State management
+    state = {
+        'current_method': method_name,
+        'animation': None,
+        'is_playing': False,
+        'current_frame': 0,
+        'path_lines': [],
+        'edge_lines': [],
+        'scatters': {},
+        'visit_labels': {},
+        'node_labels': {}
+    }
 
     # --- Draw edges and edge costs ---
     for src, neighbors in edges.items():
         x1, y1 = nodes[src]
         for dest, cost in neighbors:
             x2, y2 = nodes[dest]
-            ax.plot([x1, x2], [y1, y2], color='gray', linestyle='--', linewidth=1)
+            line, = ax.plot([x1, x2], [y1, y2], color='#A8A8A8', linestyle='-', 
+                           linewidth=2, zorder=1, alpha=0.5)
+            state['edge_lines'].append(line)
+            
             midx, midy = (x1 + x2) / 2, (y1 + y2) / 2
-            ax.text(midx, midy, f"{cost:.1f}", fontsize=8, color='green', alpha=0.8)
+            ax.text(midx, midy, f"{cost:.1f}", fontsize=10, color='#2E7D32', 
+                   fontweight='bold', ha='center', va='center',
+                   bbox=dict(boxstyle='round,pad=0.35', facecolor='#E8F5E9', 
+                            edgecolor='#4CAF50', alpha=0.9, linewidth=1.5), zorder=2)
 
     # --- Draw nodes ---
-    scatters = {}
     for node, (x, y) in nodes.items():
-        color = "lightgray"
         if node == start:
-            color = "limegreen"  # Start
+            color = "#4CAF50"  # Material Green
+            size = 900
+            edge_color = '#2E7D32'
+            edge_width = 3.5
         elif node in goals:
-            color = "red"  # Goal
-        scatters[node] = ax.scatter(x, y, color=color, s=500, zorder=5, edgecolors='black')
-        # label node clearly above the point
-        ax.text(x, y + 0.2, f"{node}", fontsize=12, ha='center', va='bottom', fontweight='bold')
+            color = "#F44336"  # Material Red
+            size = 900
+            edge_color = '#C62828'
+            edge_width = 3.5
+        else:
+            color = "#ECEFF1"  # Light Blue Grey
+            size = 750
+            edge_color = '#78909C'
+            edge_width = 2.5
+            
+        scatter = ax.scatter(x, y, color=color, s=size, zorder=5, 
+                            edgecolors=edge_color, linewidths=edge_width, alpha=0.95)
+        state['scatters'][node] = scatter
+        
+        # Node label
+        label = ax.text(x, y, f"{node}", fontsize=15, ha='center', va='center', 
+                       fontweight='bold', color='#212121', zorder=6)
+        state['node_labels'][node] = label
+        
+        # Visit order label (initially empty)
+        visit_label = ax.text(x, y - 0.5, "", fontsize=9, ha='center', 
+                             va='top', color='#1976D2', fontweight='bold', zorder=6,
+                             bbox=dict(boxstyle='round,pad=0.3', facecolor='#E3F2FD', 
+                                      edgecolor='#2196F3', alpha=0, linewidth=1))
+        state['visit_labels'][node] = visit_label
 
-    # --- Legend for clarity ---
-    legend_patches = [
-        plt.Line2D([], [], color='limegreen', marker='o', linestyle='None', markersize=10, label='Start Node'),
-        plt.Line2D([], [], color='red', marker='o', linestyle='None', markersize=10, label='Goal Node'),
-        plt.Line2D([], [], color='orange', marker='o', linestyle='None', markersize=10, label='Visited / Explored'),
-        plt.Line2D([], [], color='lightgray', marker='o', linestyle='None', markersize=10, label='Unvisited'),
-        plt.Line2D([], [], color='red', linewidth=3, label='Final Path'),
+    # Info box with enhanced styling
+    info_box = ax.text(0.02, 0.98, "", transform=ax.transAxes, fontsize=11,
+                      verticalalignment='top', family='monospace',
+                      bbox=dict(boxstyle='round,pad=0.8', facecolor='#FFF9C4', 
+                               edgecolor='#FFA726', alpha=0.95, linewidth=2.5),
+                      fontweight='bold', color='#424242', linespacing=1.6)
+
+    # --- Legend with enhanced styling ---
+    legend_elements = [
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#4CAF50', 
+                  markersize=12, markeredgecolor='#2E7D32', markeredgewidth=2.5,
+                  label='🚀 Start Node', linestyle='None'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#F44336', 
+                  markersize=12, markeredgecolor='#C62828', markeredgewidth=2.5,
+                  label='🎯 Goal Node', linestyle='None'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#FF9800', 
+                  markersize=12, markeredgecolor='#F57C00', markeredgewidth=2.5,
+                  label='👁 Explored', linestyle='None'),
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#ECEFF1', 
+                  markersize=12, markeredgecolor='#78909C', markeredgewidth=2.5,
+                  label='⚪ Unvisited', linestyle='None'),
+        plt.Line2D([0], [0], color='#D32F2F', linewidth=4, label='✓ Final Path'),
     ]
-    ax.legend(handles=legend_patches, loc='upper right', fontsize=8, framealpha=0.9)
+    legend = ax.legend(handles=legend_elements, loc='upper right', fontsize=10, 
+                      framealpha=0.97, edgecolor='#757575', fancybox=True,
+                      shadow=True, title='Legend', title_fontsize=11)
+    legend.get_frame().set_facecolor('#FAFAFA')
+    legend.get_frame().set_linewidth(2)
 
-    # --- Animation update ---
-    def update(frame):
+    # --- Button axes (at bottom with better spacing) ---
+    button_row = 10
+    ax_bfs = plt.subplot2grid((12, 12), (button_row, 0), colspan=2, rowspan=1)
+    ax_dfs = plt.subplot2grid((12, 12), (button_row, 2), colspan=2, rowspan=1)
+    ax_gbfs = plt.subplot2grid((12, 12), (button_row, 4), colspan=2, rowspan=1)
+    ax_astar = plt.subplot2grid((12, 12), (button_row, 6), colspan=2, rowspan=1)
+    ax_reset = plt.subplot2grid((12, 12), (button_row, 8), colspan=2, rowspan=1)
+    ax_pause = plt.subplot2grid((12, 12), (button_row, 10), colspan=2, rowspan=1)
+
+    # Create buttons with Material Design colors
+    btn_bfs = Button(ax_bfs, 'BFS', color='#64B5F6', hovercolor='#42A5F5')
+    btn_dfs = Button(ax_dfs, 'DFS', color='#64B5F6', hovercolor='#42A5F5')
+    btn_gbfs = Button(ax_gbfs, 'GBFS', color='#FFB74D', hovercolor='#FFA726')
+    btn_astar = Button(ax_astar, 'A*', color='#FFB74D', hovercolor='#FFA726')
+    btn_reset = Button(ax_reset, '🔄 Reset', color='#81C784', hovercolor='#66BB6A')
+    btn_pause = Button(ax_pause, '⏸ Pause', color='#FFD54F', hovercolor='#FFCA28')
+    
+    # Style button text
+    for btn in [btn_bfs, btn_dfs, btn_gbfs, btn_astar, btn_reset, btn_pause]:
+        btn.label.set_fontsize(11)
+        btn.label.set_fontweight('bold')
+        btn.label.set_color('#212121')
+
+    # Function to run search algorithm
+    def run_algorithm(method):
+        state['current_method'] = method
+        
+        if method == "BFS":
+            goal, count, new_path, new_visited = bfs(edges, start, goals)
+        elif method == "DFS":
+            goal, count, new_path, new_visited = dfs(edges, start, goals)
+        elif method == "GBFS":
+            goal, count, new_path, new_visited = gbfs(nodes, edges, start, goals)
+        elif method == "A*":
+            goal, count, new_path, new_visited = astar(nodes, edges, start, goals)
+        
+        return goal, count, new_path, new_visited
+
+    # Reset visualization
+    def reset_viz():
+        # Clear path lines
+        for line in state['path_lines']:
+            line.remove()
+        state['path_lines'].clear()
+        
+        # Reset node colors
+        for node in state['scatters']:
+            if node == start:
+                state['scatters'][node].set_color('#4CAF50')
+                state['scatters'][node].set_edgecolor('#2E7D32')
+            elif node in goals:
+                state['scatters'][node].set_color('#F44336')
+                state['scatters'][node].set_edgecolor('#C62828')
+            else:
+                state['scatters'][node].set_color('#ECEFF1')
+                state['scatters'][node].set_edgecolor('#78909C')
+        
+        # Clear visit labels
+        for label in state['visit_labels'].values():
+            label.set_text("")
+            label.set_bbox(dict(boxstyle='round,pad=0.3', facecolor='#E3F2FD', 
+                               edgecolor='#2196F3', alpha=0, linewidth=1))
+        
+        state['current_frame'] = 0
+        info_box.set_text("")
+        ax.set_title("", fontsize=15, fontweight='bold', pad=20, color='#424242')
+        fig.canvas.draw_idle()
+
+    # Animation update function with enhanced visuals
+    def update(frame, visited_order, path, method):
+        state['current_frame'] = frame
+        
         if frame < len(visited_order):
             current = visited_order[frame]
+            visit_num = frame + 1
+            
             if current not in (start, *goals):
-                scatters[current].set_color('orange')
-            ax.set_title(f"Route Finding using {method_name} | Nodes Expanded: {frame + 1}")
+                state['scatters'][current].set_color('#FF9800')
+                state['scatters'][current].set_edgecolor('#F57C00')
+                state['scatters'][current].set_alpha(0.95)
+            
+            state['visit_labels'][current].set_text(f"#{visit_num}")
+            # Make the visit label background visible when visited
+            state['visit_labels'][current].set_bbox(dict(boxstyle='round,pad=0.3', 
+                                                         facecolor='#E3F2FD', 
+                                                         edgecolor='#2196F3', 
+                                                         alpha=0.9, linewidth=1))
+            
+            # Calculate progress percentage
+            progress = (visit_num / len(visited_order)) * 100
+            progress_bar = '█' * int(progress / 10) + '░' * (10 - int(progress / 10))
+            
+            info_box.set_text(f"🔍 Algorithm: {method}\n"
+                            f"📊 Progress: [{progress_bar}] {progress:.0f}%\n"
+                            f"🔢 Nodes Explored: {visit_num} / {len(visited_order)}\n"
+                            f"📍 Current Node: {current}\n"
+                            f"⚡ Status: Searching...")
+            
+            ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm", 
+                        fontsize=15, fontweight='bold', pad=20, color='#1976D2')
+            
         elif frame == len(visited_order):
-            # Draw the final path
+            # Draw final path with enhanced styling
+            for line in state['path_lines']:
+                line.remove()
+            state['path_lines'].clear()
+            
+            # Calculate total path cost
+            path_cost = 0
             for i in range(len(path) - 1):
                 x1, y1 = nodes[path[i]]
                 x2, y2 = nodes[path[i + 1]]
-                ax.plot([x1, x2], [y1, y2], color='red', linewidth=3, zorder=6)
-            ax.set_title(f"Route Finding using {method_name} | Final Path Found!")
-        return list(scatters.values())
+                line, = ax.plot([x1, x2], [y1, y2], color='#D32F2F', 
+                              linewidth=5, zorder=4, alpha=0.85, 
+                              solid_capstyle='round')
+                state['path_lines'].append(line)
+                
+                # Calculate cost for this edge
+                for neighbor, cost in edges.get(path[i], []):
+                    if neighbor == path[i + 1]:
+                        path_cost += cost
+                        break
+            
+            progress_bar = '█' * 10
+            info_box.set_text(f"🔍 Algorithm: {method}\n"
+                            f"📊 Progress: [{progress_bar}] 100%\n"
+                            f"🔢 Nodes Explored: {len(visited_order)}\n"
+                            f"📏 Path Length: {len(path)} nodes\n"
+                            f"💰 Total Cost: {path_cost:.1f}\n"
+                            f"✅ Status: COMPLETE!")
+            info_box.set_bbox(dict(boxstyle='round,pad=0.8', facecolor='#C8E6C9', 
+                                  edgecolor='#4CAF50', alpha=0.95, linewidth=2.5))
+            
+            ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm ✓ COMPLETE", 
+                        fontsize=15, fontweight='bold', pad=20, color='#2E7D32')
+        
+        return [info_box]
 
-    total_frames = len(visited_order) + 10
-    ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=600, repeat=False)
+    # Button callbacks
+    def on_bfs(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("BFS")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "BFS"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
 
-    plt.tight_layout()
+    def on_dfs(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("DFS")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "DFS"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_gbfs(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("GBFS")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "GBFS"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_astar(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("A*")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "A*"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_reset(event):
+        if state['animation']:
+            state['animation'].event_source.stop()
+        state['is_playing'] = False
+        reset_viz()
+
+    def on_pause(event):
+        if state['animation']:
+            if state['is_playing']:
+                state['animation'].event_source.stop()
+                state['is_playing'] = False
+                btn_pause.label.set_text('▶ Resume')
+            else:
+                state['animation'].event_source.start()
+                state['is_playing'] = True
+                btn_pause.label.set_text('⏸ Pause')
+            fig.canvas.draw_idle()
+
+    # Connect buttons
+    btn_bfs.on_clicked(on_bfs)
+    btn_dfs.on_clicked(on_dfs)
+    btn_gbfs.on_clicked(on_gbfs)
+    btn_astar.on_clicked(on_astar)
+    btn_reset.on_clicked(on_reset)
+    btn_pause.on_clicked(on_pause)
+
+    # Add title to the figure
+    fig.suptitle('🎯 Interactive Pathfinding Algorithm Visualizer', 
+                fontsize=17, fontweight='bold', color='#1565C0', y=0.98)
+    
+    # Initial animation with smoother interval
+    state['is_playing'] = True
+    state['animation'] = animation.FuncAnimation(
+        fig, update, fargs=(visited_order, path, method_name),
+        frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
+
+    plt.tight_layout(rect=[0, 0.02, 1, 0.96])
     plt.show()
 
 # ------------------------------

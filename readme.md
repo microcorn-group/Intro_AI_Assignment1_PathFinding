@@ -11,8 +11,10 @@ This repository contains a small path-finding assignment implemented in Python. 
 	- Greedy Best-First Search (GBFS)
 	- A* Search (A*)
 	- Two custom method aliases (`CUS1`, `CUS2`) that map to DFS and A* respectively
+	- **🎮 Interactive UI with control buttons** to switch algorithms, reset, and pause/resume
 	- Utilities to load a problem file, print results, and draw a plot of the graph and the final path using matplotlib
 - `PathFinder-test.txt` — Example problem file with nodes, edges, origin and destinations
+- `UI_GUIDE.md` — Comprehensive guide for using the interactive controls
 
 ## Problem file format
 
@@ -76,7 +78,24 @@ PathFinder-test.txt DFS
 5 10
 2 -> 3 -> 5
 
-After the textual output the program will open a matplotlib window showing the nodes, edges (with costs), and the chosen path highlighted.
+After the textual output the program will open an **interactive matplotlib window** with:
+- **Animated visualization** of the search algorithm
+- **Control panel buttons** at the bottom:
+  - `[BFS]` `[DFS]` `[GBFS]` `[A*]` - Switch between algorithms instantly
+  - `[Reset]` - Clear and restart visualization
+  - `[Pause]` - Pause/resume animation
+- **Real-time info box** showing algorithm progress
+- **Visit order numbers** on each explored node
+- **Color-coded nodes** and bold red final path
+
+### 🎮 Interactive Features
+Once the window opens, you can:
+1. **Switch algorithms** - Click any algorithm button (BFS, DFS, GBFS, A*)
+2. **Reset** - Click Reset button to clear the visualization
+3. **Pause/Resume** - Click Pause to stop animation, click again to resume
+4. **Compare strategies** - Easily switch between methods to see differences
+
+See `UI_GUIDE.md` for detailed instructions and tips!
 
 ## Notes and caveats
 
