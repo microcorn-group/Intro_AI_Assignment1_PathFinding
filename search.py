@@ -114,21 +114,152 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         if frame < len(visited_order):
             current = visited_order[frame]
             if current not in (start, *goals):
+<<<<<<< Updated upstream
                 scatters[current].set_color('orange')
             ax.set_title(f"Route Finding using {method_name} | Nodes Expanded: {frame + 1}")
+=======
+                state['scatters'][current].set_color('#FF9800')
+                state['scatters'][current].set_edgecolor('#F57C00')
+                state['scatters'][current].set_alpha(0.95)
+            
+            state['visit_labels'][current].set_text(f"#{visit_num}")
+            # Make the visit label background visible when visited
+            state['visit_labels'][current].set_bbox(dict(boxstyle='round,pad=0.3', 
+                                                         facecolor='#E3F2FD', 
+                                                         edgecolor='#2196F3', 
+                                                         alpha=0.9, linewidth=1))
+            
+            # Calculate progress percentage
+            progress = (visit_num / len(visited_order)) * 100
+            progress_bar = '█' * int(progress / 10) + '░' * (10 - int(progress / 10))
+            
+            info_box.set_text(f"🔍 Algorithm: {method}\n"
+                            f"Progress: [{progress_bar}] {progress:.0f}%\n"
+                            f"Nodes Explored: {visit_num} / {len(visited_order)}\n"
+                            f"Current Node: {current}\n"
+                            f"Status: Searching...")
+            
+            ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm", 
+                        fontsize=15, fontweight='bold', pad=20, color='#1976D2')
+            
+>>>>>>> Stashed changes
         elif frame == len(visited_order):
             # Draw the final path
             for i in range(len(path) - 1):
                 x1, y1 = nodes[path[i]]
                 x2, y2 = nodes[path[i + 1]]
+<<<<<<< Updated upstream
                 ax.plot([x1, x2], [y1, y2], color='red', linewidth=3, zorder=6)
             ax.set_title(f"Route Finding using {method_name} | Final Path Found!")
         return list(scatters.values())
+=======
+                line, = ax.plot([x1, x2], [y1, y2], color='#D32F2F', 
+                              linewidth=5, zorder=4, alpha=0.85, 
+                              solid_capstyle='round')
+                state['path_lines'].append(line)
+                
+                # Calculate cost for this edge
+                for neighbor, cost in edges.get(path[i], []):
+                    if neighbor == path[i + 1]:
+                        path_cost += cost
+                        break
+            
+            progress_bar = '█' * 10
+            info_box.set_text(f"🔍 Algorithm: {method}\n"
+                            f"Progress: [{progress_bar}] 100%\n"
+                            f"Nodes Explored: {len(visited_order)}\n"
+                            f"Path Length: {len(path)} nodes\n"
+                            f"Total Cost: {path_cost:.1f}\n"
+                            f"Status: COMPLETE!")
+            info_box.set_bbox(dict(boxstyle='round,pad=0.8', facecolor='#C8E6C9', 
+                                  edgecolor='#4CAF50', alpha=0.95, linewidth=2.5))
+            
+            ax.set_title(f"Path Finding Visualization — {method} Algorithm ✓ COMPLETE", 
+                        fontsize=15, fontweight='bold', pad=20, color='#2E7D32')
+        
+        return [info_box]
+>>>>>>> Stashed changes
 
     total_frames = len(visited_order) + 10
     ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=600, repeat=False)
 
+<<<<<<< Updated upstream
     plt.tight_layout()
+=======
+    def on_dfs(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("DFS")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "DFS"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_gbfs(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("GBFS")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "GBFS"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_astar(event):
+        reset_viz()
+        goal, count, new_path, new_visited = run_algorithm("A*")
+        if goal:
+            state['is_playing'] = True
+            if state['animation']:
+                state['animation'].event_source.stop()
+            state['animation'] = animation.FuncAnimation(
+                fig, update, fargs=(new_visited, new_path, "A*"),
+                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+            fig.canvas.draw_idle()
+
+    def on_reset(event):
+        if state['animation']:
+            state['animation'].event_source.stop()
+        state['is_playing'] = False
+        reset_viz()
+
+    def on_pause(event):
+        if state['animation']:
+            if state['is_playing']:
+                state['animation'].event_source.stop()
+                state['is_playing'] = False
+                btn_pause.label.set_text('▶ Resume')
+            else:
+                state['animation'].event_source.start()
+                state['is_playing'] = True
+                btn_pause.label.set_text('⏸ Pause')
+            fig.canvas.draw_idle()
+
+    # Connect buttons
+    btn_bfs.on_clicked(on_bfs)
+    btn_dfs.on_clicked(on_dfs)
+    btn_gbfs.on_clicked(on_gbfs)
+    btn_astar.on_clicked(on_astar)
+    btn_reset.on_clicked(on_reset)
+    btn_pause.on_clicked(on_pause)
+
+    # Add title to the figure
+    fig.suptitle('Interactive Pathfinding Algorithm Visualizer', 
+                fontsize=17, fontweight='bold', color='#1565C0', y=0.98)
+    
+    # Initial animation with smoother interval
+    state['is_playing'] = True
+    state['animation'] = animation.FuncAnimation(
+        fig, update, fargs=(visited_order, path, method_name),
+        frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
+
+    plt.tight_layout(rect=[0, 0.02, 1, 0.96])
+>>>>>>> Stashed changes
     plt.show()
 
 # ------------------------------
