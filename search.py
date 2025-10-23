@@ -114,10 +114,6 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         if frame < len(visited_order):
             current = visited_order[frame]
             if current not in (start, *goals):
-<<<<<<< Updated upstream
-                scatters[current].set_color('orange')
-            ax.set_title(f"Route Finding using {method_name} | Nodes Expanded: {frame + 1}")
-=======
                 state['scatters'][current].set_color('#FF9800')
                 state['scatters'][current].set_edgecolor('#F57C00')
                 state['scatters'][current].set_alpha(0.95)
@@ -142,17 +138,11 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
             ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm", 
                         fontsize=15, fontweight='bold', pad=20, color='#1976D2')
             
->>>>>>> Stashed changes
         elif frame == len(visited_order):
             # Draw the final path
             for i in range(len(path) - 1):
                 x1, y1 = nodes[path[i]]
                 x2, y2 = nodes[path[i + 1]]
-<<<<<<< Updated upstream
-                ax.plot([x1, x2], [y1, y2], color='red', linewidth=3, zorder=6)
-            ax.set_title(f"Route Finding using {method_name} | Final Path Found!")
-        return list(scatters.values())
-=======
                 line, = ax.plot([x1, x2], [y1, y2], color='#D32F2F', 
                               linewidth=5, zorder=4, alpha=0.85, 
                               solid_capstyle='round')
@@ -178,14 +168,10 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                         fontsize=15, fontweight='bold', pad=20, color='#2E7D32')
         
         return [info_box]
->>>>>>> Stashed changes
 
     total_frames = len(visited_order) + 10
     ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=600, repeat=False)
 
-<<<<<<< Updated upstream
-    plt.tight_layout()
-=======
     def on_dfs(event):
         reset_viz()
         goal, count, new_path, new_visited = run_algorithm("DFS")
@@ -259,7 +245,6 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
 
     plt.tight_layout(rect=[0, 0.02, 1, 0.96])
->>>>>>> Stashed changes
     plt.show()
 
 # ------------------------------
