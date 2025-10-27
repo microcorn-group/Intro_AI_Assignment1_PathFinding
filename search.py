@@ -6,50 +6,36 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button
 from matplotlib.patches import FancyBboxPatch
+from bst_visualizer import (BST, create_search_tree_from_visited_order, create_bst_from_all_nodes,
+                            calculate_tree_layout, setup_bst_visualization, highlight_node)
 
 # ------------------------------
 # LOAD GRAPH DATA
 # ------------------------------
-def load_problem(filename): 
-    nodes = {}
-    edges = {}
-    origin = None
-    destinations = []
-
+def load_problem(filename):
+    nodes, edges, origin, destinations = {}, {}, None, []
+    section = None
+    
     with open(filename, 'r') as f:
-        section = None
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            if line.startswith('Nodes:'):
-                section = 'nodes'
-                continue
-            elif line.startswith('Edges:'):
-                section = 'edges'
-                continue
-            elif line.startswith('Origin:'):
-                section = 'origin'
-                continue
-            elif line.startswith('Destinations:'):
-                section = 'dest'
+            if line.startswith(('Nodes:', 'Edges:', 'Origin:', 'Destinations:')):
+                section = line.split(':')[0].lower()
                 continue
 
             if section == 'nodes':
                 node, coords = line.split(':')
                 x, y = coords.strip(" ()").split(',')
                 nodes[node.strip()] = (float(x), float(y))
-
             elif section == 'edges':
                 left, cost = line.split(':')
                 a, b = left.strip(" ()").split(',')
-                cost = float(cost.strip())
-                edges.setdefault(a.strip(), []).append((b.strip(), cost))
-
+                edges.setdefault(a.strip(), []).append((b.strip(), float(cost.strip())))
             elif section == 'origin':
                 origin = line.strip()
-
-            elif section == 'dest':
+            elif section == 'destinations':
                 destinations = [d.strip() for d in line.split(";")]
 
     return nodes, edges, origin, destinations
@@ -71,19 +57,29 @@ def print_results(filename, method, goal, num_nodes, path):
     print(" -> ".join(path))
 
 # ------------------------------
-# INTERACTIVE VISUALIZATION WITH UI CONTROLS
+# INTERACTIVE VISUALIZATION WITH UI CONTROLS (+ BST SIDE-BY-SIDE)
 # ------------------------------
-def visualize_search(nodes, edges, visited_order, path, method_name, start, goals, filename=None):
+def visualize_search(nodes, edges, visited_order, path, method_name, start, goals, bst=None, filename=None):
     # Create figure with extra space for controls
-    fig = plt.figure(figsize=(14, 9))
-    fig.patch.set_facecolor('#F5F5F5')
+    fig = plt.figure(figsize=(22, 11))
+    fig.patch.set_facecolor('#F8F9FA')  # Slightly improved gray
     
-    # Main graph axes
-    ax = plt.subplot2grid((12, 12), (0, 0), colspan=12, rowspan=9)
+    # Add main title at the top
+    fig.suptitle('Interactive Pathfinding Algorithm Visualizer', 
+                 fontsize=20, fontweight='bold', color='#1976D2', y=0.98)
+    
+    # Main graph axes on the LEFT
+    if bst:
+        # If BST is provided, use left side for graph and right side for BST
+        ax = plt.subplot2grid((12, 20), (1, 0), colspan=10, rowspan=8)
+    else:
+        # If no BST, use full width
+        ax = plt.subplot2grid((12, 12), (1, 0), colspan=12, rowspan=8)
     ax.set_facecolor('#FFFFFF')
-    ax.set_xlabel("X Coordinate", fontsize=12, fontweight='bold', color='#333333')
-    ax.set_ylabel("Y Coordinate", fontsize=12, fontweight='bold', color='#333333')
-    ax.grid(True, alpha=0.25, linestyle='--', linewidth=0.8, color='#CCCCCC')
+    ax.set_xlabel("X Coordinate", fontsize=11, fontweight='bold', color='#555555')
+    ax.set_ylabel("Y Coordinate", fontsize=11, fontweight='bold', color='#555555')
+    ax.grid(True, alpha=0.2, linestyle='--', linewidth=0.7, color='#E0E0E0')
+    ax.set_title("Search Graph", fontsize=13, fontweight='bold', color='#424242', pad=10)
     
     # Set axis limits with padding
     x_coords = [coord[0] for coord in nodes.values()]
@@ -98,6 +94,9 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         spine.set_edgecolor('#BBBBBB')
         spine.set_linewidth(1.5)
 
+    # Initialize BST data early
+    bst_data = {}
+
     # State management
     state = {
         'current_method': method_name,
@@ -108,7 +107,8 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         'edge_lines': [],
         'scatters': {},
         'visit_labels': {},
-        'node_labels': {}
+        'node_labels': {},
+        'bst_data': bst_data  # Will be updated later if BST exists
     }
 
     # --- Draw edges and edge costs ---
@@ -126,23 +126,21 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                    bbox=dict(boxstyle='round,pad=0.35', facecolor='#E8F5E9', 
                             edgecolor='#4CAF50', alpha=0.9, linewidth=1.5), zorder=2)
 
+    # Color scheme constants
+    COLORS = {
+        'start': ('#4CAF50', '#2E7D32', 900, 3.5),
+        'goal': ('#F44336', '#C62828', 900, 3.5),
+        'normal': ('#ECEFF1', '#78909C', 750, 2.5),
+    }
+    
     # --- Draw nodes ---
     for node, (x, y) in nodes.items():
         if node == start:
-            color = "#4CAF50"  # Material Green
-            size = 900
-            edge_color = '#2E7D32'
-            edge_width = 3.5
+            color, edge_color, size, edge_width = COLORS['start']
         elif node in goals:
-            color = "#F44336"  # Material Red
-            size = 900
-            edge_color = '#C62828'
-            edge_width = 3.5
+            color, edge_color, size, edge_width = COLORS['goal']
         else:
-            color = "#ECEFF1"  # Light Blue Grey
-            size = 750
-            edge_color = '#78909C'
-            edge_width = 2.5
+            color, edge_color, size, edge_width = COLORS['normal']
             
         scatter = ax.scatter(x, y, color=color, s=size, zorder=5, 
                             edgecolors=edge_color, linewidths=edge_width, alpha=0.95)
@@ -160,57 +158,92 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                                       edgecolor='#2196F3', alpha=0, linewidth=1))
         state['visit_labels'][node] = visit_label
 
-    # Info box with enhanced styling
-    info_box = ax.text(0.02, 0.98, "", transform=ax.transAxes, fontsize=11,
+    # --- Draw BST on RIGHT SIDE if provided ---
+    bst_data = {}  # Store BST visualization data
+    if bst:
+        from bst_visualizer import calculate_tree_layout, draw_tree_edges
+        import matplotlib.patches as patches
+        
+        ax_bst = plt.subplot2grid((12, 20), (1, 10), colspan=10, rowspan=8)
+        ax_bst.set_facecolor('#FFFFFF')  # Clean white background
+        ax_bst.set_aspect('equal')
+        ax_bst.axis('off')
+        
+        # Title
+        ax_bst.text(0.5, 0.98, 'Search Tree', 
+                   transform=ax_bst.transAxes, fontsize=13, fontweight='bold',
+                   ha='center', va='top', color='#424242')
+        
+        # Calculate BST layout
+        bst_positions = calculate_tree_layout(bst.root)
+        bst_positions_dict = {value: (x, y) for value, x, y in bst_positions}
+        
+        # Set up tree visualization (draw all nodes as inactive/gray first)
+        node_circles, node_texts, node_badges = setup_bst_visualization(ax_bst, bst, bst_positions_dict)
+        bst_data = {
+            'ax': ax_bst,
+            'positions_dict': bst_positions_dict,
+            'node_circles': node_circles,
+            'node_texts': node_texts,
+            'node_badges': node_badges
+        }
+        
+        # Update state with BST data
+        state['bst_data'] = bst_data
+        
+        # Set axis limits
+        if bst_positions:
+            xs = [pos[1] for pos in bst_positions]
+            ys = [pos[2] for pos in bst_positions]
+            margin = 150
+            ax_bst.set_xlim(min(xs) - margin, max(xs) + margin)
+            ax_bst.set_ylim(min(ys) - margin, max(ys) + margin)
+
+    # Info box with unified styling
+    info_box = ax.text(0.02, 0.96, "", transform=ax.transAxes, fontsize=10,
                       verticalalignment='top', family='monospace',
-                      bbox=dict(boxstyle='round,pad=0.8', facecolor='#FFF9C4', 
-                               edgecolor='#FFA726', alpha=0.95, linewidth=2.5),
-                      fontweight='bold', color='#424242', linespacing=1.6)
+                      bbox=dict(boxstyle='round,pad=0.7', facecolor='#E3F2FD', 
+                               edgecolor='#1976D2', alpha=0.92, linewidth=1.5),
+                      fontweight='bold', color='#1565C0')
 
     # --- Legend with enhanced styling ---
     legend_elements = [
         plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#4CAF50', 
                   markersize=12, markeredgecolor='#2E7D32', markeredgewidth=2.5,
-                  label='🚀 Start Node', linestyle='None'),
+                  label='Start Node', linestyle='None'),
         plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#F44336', 
                   markersize=12, markeredgecolor='#C62828', markeredgewidth=2.5,
-                  label='🎯 Goal Node', linestyle='None'),
+                  label='Goal Node', linestyle='None'),
         plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#FF9800', 
                   markersize=12, markeredgecolor='#F57C00', markeredgewidth=2.5,
-                  label='👁 Explored', linestyle='None'),
+                  label='Explored', linestyle='None'),
         plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#ECEFF1', 
                   markersize=12, markeredgecolor='#78909C', markeredgewidth=2.5,
-                  label='⚪ Unvisited', linestyle='None'),
-        plt.Line2D([0], [0], color='#D32F2F', linewidth=4, label='✓ Final Path'),
+                  label='Unvisited', linestyle='None'),
+        plt.Line2D([0], [0], color='#D32F2F', linewidth=4, label='Final Path'),
     ]
-    legend = ax.legend(handles=legend_elements, loc='upper right', fontsize=10, 
-                      framealpha=0.97, edgecolor='#757575', fancybox=True,
-                      shadow=True, title='Legend', title_fontsize=11)
+    legend = ax.legend(handles=legend_elements, loc='upper right', fontsize=9, 
+                      framealpha=0.94, edgecolor='#BDBDBD', fancybox=True,
+                      shadow=False, title='Legend', title_fontsize=10)
     legend.get_frame().set_facecolor('#FAFAFA')
-    legend.get_frame().set_linewidth(2)
+    legend.get_frame().set_linewidth(1)
 
     # --- Button axes (at bottom with better spacing) ---
     button_row = 10
-    ax_bfs = plt.subplot2grid((12, 12), (button_row, 0), colspan=2, rowspan=1)
-    ax_dfs = plt.subplot2grid((12, 12), (button_row, 2), colspan=2, rowspan=1)
-    ax_gbfs = plt.subplot2grid((12, 12), (button_row, 4), colspan=2, rowspan=1)
-    ax_astar = plt.subplot2grid((12, 12), (button_row, 6), colspan=2, rowspan=1)
-    ax_reset = plt.subplot2grid((12, 12), (button_row, 8), colspan=2, rowspan=1)
-    ax_pause = plt.subplot2grid((12, 12), (button_row, 10), colspan=2, rowspan=1)
-
-    # Create buttons with Material Design colors
-    btn_bfs = Button(ax_bfs, 'BFS', color='#64B5F6', hovercolor='#42A5F5')
-    btn_dfs = Button(ax_dfs, 'DFS', color='#64B5F6', hovercolor='#42A5F5')
-    btn_gbfs = Button(ax_gbfs, 'GBFS', color='#FFB74D', hovercolor='#FFA726')
-    btn_astar = Button(ax_astar, 'A*', color='#FFB74D', hovercolor='#FFA726')
-    btn_reset = Button(ax_reset, '🔄 Reset', color='#81C784', hovercolor='#66BB6A')
-    btn_pause = Button(ax_pause, '⏸ Pause', color='#FFD54F', hovercolor='#FFCA28')
+    grid_cols = (12, 20) if bst else (12, 12)
+    btn_cols = 20 if bst else 12
+    btn_data = [('BFS', 0, '#42A5F5', '#1E88E5'), ('DFS', 2, '#42A5F5', '#1E88E5'),
+                ('GBFS', 4, '#FFA726', '#F57C00'), ('A*', 6, '#FFA726', '#F57C00'),
+                ('Reset', 8, '#66BB6A', '#4CAF50'), ('Pause', 10, '#FFCA28', '#FFA000')]
     
-    # Style button text
-    for btn in [btn_bfs, btn_dfs, btn_gbfs, btn_astar, btn_reset, btn_pause]:
-        btn.label.set_fontsize(11)
+    buttons = {}
+    for label, col, color, hover in btn_data:
+        ax_btn = plt.subplot2grid(grid_cols, (button_row, col), colspan=2, rowspan=1)
+        btn = Button(ax_btn, label, color=color, hovercolor=hover)
+        btn.label.set_fontsize(10)
         btn.label.set_fontweight('bold')
-        btn.label.set_color('#212121')
+        btn.label.set_color('#FFFFFF')
+        buttons[label] = btn
 
     # Function to run search algorithm
     def run_algorithm(method):
@@ -234,23 +267,35 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
             line.remove()
         state['path_lines'].clear()
         
-        # Reset node colors
+        # Reset node colors using COLORS constant
         for node in state['scatters']:
             if node == start:
-                state['scatters'][node].set_color('#4CAF50')
-                state['scatters'][node].set_edgecolor('#2E7D32')
+                color, edge_color, _, _ = COLORS['start']
             elif node in goals:
-                state['scatters'][node].set_color('#F44336')
-                state['scatters'][node].set_edgecolor('#C62828')
+                color, edge_color, _, _ = COLORS['goal']
             else:
-                state['scatters'][node].set_color('#ECEFF1')
-                state['scatters'][node].set_edgecolor('#78909C')
+                color, edge_color, _, _ = COLORS['normal']
+            state['scatters'][node].set_color(color)
+            state['scatters'][node].set_edgecolor(edge_color)
         
         # Clear visit labels
         for label in state['visit_labels'].values():
             label.set_text("")
             label.set_bbox(dict(boxstyle='round,pad=0.3', facecolor='#E3F2FD', 
                                edgecolor='#2196F3', alpha=0, linewidth=1))
+        
+        # Reset BST tree nodes to inactive state
+        if state['bst_data']:
+            for node_val in state['bst_data'].get('node_circles', {}):
+                state['bst_data']['node_circles'][node_val].set_facecolor('#F0F0F0')
+                state['bst_data']['node_circles'][node_val].set_edgecolor('#CCCCCC')
+                state['bst_data']['node_circles'][node_val].set_linewidth(2.5)
+                state['bst_data']['node_texts'][node_val].set_color('#999999')
+                if node_val in state['bst_data'].get('node_badges', {}):
+                    badge = state['bst_data']['node_badges'][node_val]
+                    badge.set_text("")
+                    if bbox := badge.get_bbox_patch():
+                        bbox.set_alpha(0)
         
         state['current_frame'] = 0
         info_box.set_text("")
@@ -261,8 +306,11 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
     def update(frame, visited_order, path, method):
         state['current_frame'] = frame
         
-        if frame < len(visited_order):
-            current = visited_order[frame]
+        # Extract just the node names from visited_order (which may contain tuples)
+        visited_nodes = [v[0] if isinstance(v, tuple) else v for v in visited_order]
+        
+        if frame < len(visited_nodes):
+            current = visited_nodes[frame]
             visit_num = frame + 1
             
             if current not in (start, *goals):
@@ -277,20 +325,27 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                                                          edgecolor='#2196F3', 
                                                          alpha=0.9, linewidth=1))
             
+            # ANIMATE BST: Light up the node in the search tree
+            if state['bst_data']:
+                highlight_node(state['bst_data']['node_circles'],
+                              state['bst_data']['node_texts'],
+                              state['bst_data']['node_badges'],
+                              current, visit_num)
+            
             # Calculate progress percentage
-            progress = (visit_num / len(visited_order)) * 100
+            progress = (visit_num / len(visited_nodes)) * 100
             progress_bar = '█' * int(progress / 10) + '░' * (10 - int(progress / 10))
             
-            info_box.set_text(f"🔍 Algorithm: {method}\n"
-                            f"📊 Progress: [{progress_bar}] {progress:.0f}%\n"
-                            f"🔢 Nodes Explored: {visit_num} / {len(visited_order)}\n"
-                            f"📍 Current Node: {current}\n"
-                            f"⚡ Status: Searching...")
+            info_box.set_text(f"Algorithm: {method}\n"
+                            f"Progress: [{progress_bar}] {progress:.0f}%\n"
+                            f"Nodes Explored: {visit_num} / {len(visited_nodes)}\n"
+                            f"Current Node: {current}\n"
+                            f"Status: Searching...")
             
-            ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm", 
+            ax.set_title(f"Path Finding Visualization — {method} Algorithm", 
                         fontsize=15, fontweight='bold', pad=20, color='#1976D2')
             
-        elif frame == len(visited_order):
+        elif frame == len(visited_nodes):
             # Draw final path with enhanced styling
             for line in state['path_lines']:
                 line.remove()
@@ -313,68 +368,40 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                         break
             
             progress_bar = '█' * 10
-            info_box.set_text(f"🔍 Algorithm: {method}\n"
-                            f"📊 Progress: [{progress_bar}] 100%\n"
-                            f"🔢 Nodes Explored: {len(visited_order)}\n"
-                            f"📏 Path Length: {len(path)} nodes\n"
-                            f"💰 Total Cost: {path_cost:.1f}\n"
-                            f"✅ Status: COMPLETE!")
+            visited_nodes_count = len([v[0] if isinstance(v, tuple) else v for v in visited_order])
+            info_box.set_text(f"Algorithm: {method}\n"
+                            f"Progress: [{progress_bar}] 100%\n"
+                            f"Nodes Explored: {visited_nodes_count}\n"
+                            f"Path Length: {len(path)} nodes\n"
+                            f"Total Cost: {path_cost:.1f}\n"
+                            f"Status: COMPLETE!")
             info_box.set_bbox(dict(boxstyle='round,pad=0.8', facecolor='#C8E6C9', 
                                   edgecolor='#4CAF50', alpha=0.95, linewidth=2.5))
             
-            ax.set_title(f"🗺️ Path Finding Visualization — {method} Algorithm ✓ COMPLETE", 
+            ax.set_title(f"Path Finding Visualization — {method} Algorithm (COMPLETE)", 
                         fontsize=15, fontweight='bold', pad=20, color='#2E7D32')
         
         return [info_box]
 
-    # Button callbacks
-    def on_bfs(event):
-        reset_viz()
-        goal, count, new_path, new_visited = run_algorithm("BFS")
-        if goal:
-            state['is_playing'] = True
-            if state['animation']:
-                state['animation'].event_source.stop()
-            state['animation'] = animation.FuncAnimation(
-                fig, update, fargs=(new_visited, new_path, "BFS"),
-                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
-            fig.canvas.draw_idle()
-
-    def on_dfs(event):
-        reset_viz()
-        goal, count, new_path, new_visited = run_algorithm("DFS")
-        if goal:
-            state['is_playing'] = True
-            if state['animation']:
-                state['animation'].event_source.stop()
-            state['animation'] = animation.FuncAnimation(
-                fig, update, fargs=(new_visited, new_path, "DFS"),
-                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
-            fig.canvas.draw_idle()
-
-    def on_gbfs(event):
-        reset_viz()
-        goal, count, new_path, new_visited = run_algorithm("GBFS")
-        if goal:
-            state['is_playing'] = True
-            if state['animation']:
-                state['animation'].event_source.stop()
-            state['animation'] = animation.FuncAnimation(
-                fig, update, fargs=(new_visited, new_path, "GBFS"),
-                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
-            fig.canvas.draw_idle()
-
-    def on_astar(event):
-        reset_viz()
-        goal, count, new_path, new_visited = run_algorithm("A*")
-        if goal:
-            state['is_playing'] = True
-            if state['animation']:
-                state['animation'].event_source.stop()
-            state['animation'] = animation.FuncAnimation(
-                fig, update, fargs=(new_visited, new_path, "A*"),
-                frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
-            fig.canvas.draw_idle()
+    # Button callbacks - Algorithm runner factory
+    def create_algo_callback(method_name):
+        def callback(event):
+            reset_viz()
+            goal, count, new_path, new_visited = run_algorithm(method_name)
+            if goal:
+                state['is_playing'] = True
+                if state['animation']:
+                    state['animation'].event_source.stop()
+                state['animation'] = animation.FuncAnimation(
+                    fig, update, fargs=(new_visited, new_path, method_name),
+                    frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
+                fig.canvas.draw_idle()
+        return callback
+    
+    on_bfs = create_algo_callback("BFS")
+    on_dfs = create_algo_callback("DFS")
+    on_gbfs = create_algo_callback("GBFS")
+    on_astar = create_algo_callback("A*")
 
     def on_reset(event):
         if state['animation']:
@@ -387,23 +414,23 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
             if state['is_playing']:
                 state['animation'].event_source.stop()
                 state['is_playing'] = False
-                btn_pause.label.set_text('▶ Resume')
+                buttons['Pause'].label.set_text('Resume')
             else:
                 state['animation'].event_source.start()
                 state['is_playing'] = True
-                btn_pause.label.set_text('⏸ Pause')
+                buttons['Pause'].label.set_text('Pause')
             fig.canvas.draw_idle()
 
     # Connect buttons
-    btn_bfs.on_clicked(on_bfs)
-    btn_dfs.on_clicked(on_dfs)
-    btn_gbfs.on_clicked(on_gbfs)
-    btn_astar.on_clicked(on_astar)
-    btn_reset.on_clicked(on_reset)
-    btn_pause.on_clicked(on_pause)
+    buttons['BFS'].on_clicked(on_bfs)
+    buttons['DFS'].on_clicked(on_dfs)
+    buttons['GBFS'].on_clicked(on_gbfs)
+    buttons['A*'].on_clicked(on_astar)
+    buttons['Reset'].on_clicked(on_reset)
+    buttons['Pause'].on_clicked(on_pause)
 
     # Add title to the figure
-    fig.suptitle('🎯 Interactive Pathfinding Algorithm Visualizer', 
+    fig.suptitle('Interactive Pathfinding Algorithm Visualizer', 
                 fontsize=17, fontweight='bold', color='#1565C0', y=0.98)
     
     # Initial animation with smoother interval
@@ -412,22 +439,22 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         fig, update, fargs=(visited_order, path, method_name),
         frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
 
-    plt.tight_layout(rect=[0, 0.02, 1, 0.96])
+    plt.subplots_adjust(left=0.04, right=0.97, top=0.97, bottom=0.12, wspace=0.25, hspace=0.4)
     plt.show()
 
 # ------------------------------
 # SEARCH ALGORITHMS
 # ------------------------------
 def dfs(edges, start, goal):
-    stack = [(start, [start])]
+    stack = [(start, [start], None)]
     visited = set()
     visited_order = []
     count = 0
 
     while stack:
-        node, path = stack.pop()
+        node, path, parent = stack.pop()
         count += 1
-        visited_order.append(node)
+        visited_order.append((node, parent))
 
         if node in goal:
             return node, count, path, visited_order
@@ -436,21 +463,21 @@ def dfs(edges, start, goal):
             visited.add(node)
             for neighbor, _ in sorted(edges.get(node, []), reverse=True):
                 if neighbor not in visited:
-                    stack.append((neighbor, path + [neighbor]))
+                    stack.append((neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
 
 def bfs(edges, start, goal):
-    queue = deque([(start, [start])])
+    queue = deque([(start, [start], None)])
     visited = set()
     visited_order = []
     count = 0
 
     while queue:
-        node, path = queue.popleft()
+        node, path, parent = queue.popleft()
         count += 1
-        visited_order.append(node)
+        visited_order.append((node, parent))
 
         if node in goal:
             return node, count, path, visited_order
@@ -459,7 +486,7 @@ def bfs(edges, start, goal):
             visited.add(node)
             for neighbor, _ in sorted(edges.get(node, [])):
                 if neighbor not in visited:
-                    queue.append((neighbor, path + [neighbor]))
+                    queue.append((neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
@@ -467,17 +494,17 @@ def bfs(edges, start, goal):
 def gbfs(nodes, edges, start, goal):
     goal = goal[0]
     frontier = []
-    heapq.heappush(frontier, (0, start, [start]))
+    heapq.heappush(frontier, (0, start, [start], None))
     visited = set()
     visited_order = []
     count = 0
 
     while frontier:
-        _, node, path = heapq.heappop(frontier)
+        _, node, path, parent = heapq.heappop(frontier)
         count += 1
-        visited_order.append(node)
+        visited_order.append((node, parent))
 
-        if node in goal:
+        if node == goal:
             return node, count, path, visited_order
 
         if node not in visited:
@@ -485,7 +512,7 @@ def gbfs(nodes, edges, start, goal):
             for neighbor, _ in edges.get(node, []):
                 if neighbor not in visited:
                     h = heuristic(neighbor, goal, nodes)
-                    heapq.heappush(frontier, (h, neighbor, path + [neighbor]))
+                    heapq.heappush(frontier, (h, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
@@ -493,17 +520,17 @@ def gbfs(nodes, edges, start, goal):
 def astar(nodes, edges, start, goal):
     goal = goal[0]
     frontier = []
-    heapq.heappush(frontier, (0, 0, start, [start]))
+    heapq.heappush(frontier, (0, 0, start, [start], None))
     visited = {}
     visited_order = []
     count = 0
 
     while frontier:
-        f, g, node, path = heapq.heappop(frontier)
+        f, g, node, path, parent = heapq.heappop(frontier)
         count += 1
-        visited_order.append(node)
+        visited_order.append((node, parent))
 
-        if node in goal:
+        if node == goal:
             return node, count, path, visited_order
 
         if node not in visited or g < visited[node]:
@@ -511,7 +538,7 @@ def astar(nodes, edges, start, goal):
             for neighbor, cost in sorted(edges.get(node, [])):
                 g2 = g + cost
                 f2 = g2 + heuristic(neighbor, goal, nodes)
-                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor]))
+                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
@@ -553,7 +580,15 @@ if __name__ == "__main__":
 
     if goal:
         print_results(filename, method, goal, count, path)
-        visualize_search(nodes, edges, visited_order, path, method, origin, destinations)
+        
+        # Create full search tree from ALL graph nodes (not just visited)
+        bst = create_bst_from_all_nodes(list(nodes.keys()))
+        
+        # Show both visualizations side-by-side
+        print("\n" + "="*60)
+        print("Building and visualizing Full Search Tree...")
+        print("="*60)
+        visualize_search(nodes, edges, visited_order, path, method, origin, destinations, bst=bst)
     else:
         print(f"{filename} {method}\nNo path found.")
 # ------------------------------
