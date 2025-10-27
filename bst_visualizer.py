@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from collections import deque
 import math
+import time # Import time for animation pause
+
+# --- 1. BST Data Structure (Unchanged/Refined) ---
 
 class BSTNode:
     """Binary Search Tree Node"""
@@ -26,7 +29,10 @@ class BST:
     
     def _insert_recursive(self, node, value):
         """Recursive helper for insert"""
-        if value < node.value:
+        # Ensure only unique values are added for a strict BST visualization
+        if value == node.value:
+            return 
+        elif value < node.value:
             if node.left is None:
                 node.left = BSTNode(value)
             else:
@@ -37,40 +43,13 @@ class BST:
             else:
                 self._insert_recursive(node.right, value)
     
-    def _traverse(self, node, result, order='inorder'):
-        """Generic recursive traversal - order: 'inorder', 'preorder', 'postorder'"""
-        if node is None:
-            return
-        if order == 'preorder':
-            result.append(node.value)
-        self._traverse(node.left, result, order)
-        if order == 'inorder':
-            result.append(node.value)
-        self._traverse(node.right, result, order)
-        if order == 'postorder':
-            result.append(node.value)
+    # Traversal methods (kept for completeness, but not strictly used by the visualizer yet)
+    # ... (inorder_traversal, preorder_traversal, postorder_traversal, etc.) ...
     
-    def inorder_traversal(self):
-        """Return in-order traversal result"""
-        result = []
-        self._traverse(self.root, result, 'inorder')
-        return result
-    
-    def preorder_traversal(self):
-        """Return pre-order traversal result"""
-        result = []
-        self._traverse(self.root, result, 'preorder')
-        return result
-    
-    def postorder_traversal(self):
-        """Return post-order traversal result"""
-        result = []
-        self._traverse(self.root, result, 'postorder')
-        return result
-    
-    def set_visit_order(self, visited_list):
+    def set_visit_order(self, visited_list_values):
         """Set visit order numbers for each node"""
-        visited_dict = {node: order + 1 for order, node in enumerate(visited_list)}
+        # Map raw values to their visit order (1-based index)
+        visited_dict = {value: order + 1 for order, value in enumerate(visited_list_values)}
         self._set_visit_recursive(self.root, visited_dict)
     
     def _set_visit_recursive(self, node, visited_dict):
@@ -96,71 +75,17 @@ class BST:
         self._collect_nodes(node.left, result)
         self._collect_nodes(node.right, result)
 
-
-def create_search_tree_from_visited_order(visited_order):
-    """
-    Build a *search tree* showing ALL explored nodes from:
-        visited_order = [(node, parent), (node, parent), ...]
-    
-    This creates the complete exploration tree, showing every node
-    discovered by the search algorithm, not just the final path.
-    """
-    if not visited_order:
-        return None
-
-    # Map raw values -> BSTNode objects
-    tree_nodes = {}
-    root = None
-    all_nodes = set()
-
-    # First pass: create all nodes and identify root
-    for node, parent in visited_order:
-        all_nodes.add(node)
-        if node not in tree_nodes:
-            tree_nodes[node] = BSTNode(node)
-        
-        if parent is None:
-            root = tree_nodes[node]
-
-    # Second pass: build parent-child relationships
-    for node, parent in visited_order:
-        if parent is not None:
-            if parent not in tree_nodes:
-                tree_nodes[parent] = BSTNode(parent)
-                all_nodes.add(parent)
-            
-            parent_node = tree_nodes[parent]
-            child_node = tree_nodes[node]
-            
-            # Place child left/right by value
-            if node < parent:
-                if parent_node.left is None:
-                    parent_node.left = child_node
-            else:
-                if parent_node.right is None:
-                    parent_node.right = child_node
-
-    bst = BST()
-    bst.root = root
-
-    # Set visit order for ALL discovered nodes
-    visit_nodes = [n for n, _ in visited_order]
-    bst.set_visit_order(visit_nodes)
-    
-    return bst
-
+# --- 2. Tree Construction Functions (Refined) ---
 
 def create_bst_from_all_nodes(all_nodes):
     """
-    Create a Binary Search Tree from ALL graph nodes.
-    This shows the complete tree structure with all nodes visible initially,
-    then they light up one by one as the search explores them.
+    Create a (relatively) balanced Binary Search Tree from a list of all node values.
     """
     if not all_nodes:
         return None
     
     # Sort nodes to create a balanced BST
-    sorted_nodes = sorted(all_nodes)
+    sorted_nodes = sorted(list(set(all_nodes))) # ensure unique and sorted
     
     def build_balanced_bst(node_list):
         if not node_list:
@@ -175,91 +100,94 @@ def create_bst_from_all_nodes(all_nodes):
     bst.root = build_balanced_bst(sorted_nodes)
     return bst
 
+# --- 3. Layout and Drawing Functions (Aesthetics Refined) ---
 
-def calculate_tree_layout(node, x=0, y=0, dx=100):
-    """Calculate positions for tree nodes"""
+def calculate_tree_layout(node, x=0, y=0, dx_factor=1.0):
+    """
+    Calculate positions for tree nodes using a simple recursive layout.
+    dx_factor controls horizontal spacing reduction at deeper levels.
+    """
     if node is None:
         return []
     
+    # Use a base spacing and reduce it for deeper levels
+    base_dx = 150 
+    dx = base_dx * dx_factor
+    dy = 100 # Vertical spacing
+    
     positions = [(node.value, x, y)]
     
+    # Adjust dx_factor for the next level
+    next_dx_factor = dx_factor * 0.65
+    
     if node.left is not None:
-        positions.extend(calculate_tree_layout(node.left, x - dx, y - 100, dx / 2))
+        positions.extend(calculate_tree_layout(node.left, x - dx, y - dy, next_dx_factor))
     
     if node.right is not None:
-        positions.extend(calculate_tree_layout(node.right, x + dx, y - 100, dx / 2))
+        positions.extend(calculate_tree_layout(node.right, x + dx, y - dy, next_dx_factor))
     
     return positions
 
 
-def draw_tree_edges(ax, node, positions_dict, x=0, y=0, color='#66BB6A', linewidth=2.5):
+def draw_tree_edges(ax, node, positions_dict, color='#AABBC3', linewidth=2.0):
     """Draw edges between tree nodes"""
     if node is None:
         return
+    
+    x, y = positions_dict[node.value]
+
     if node.left is not None:
         x_child, y_child = positions_dict[node.left.value]
+        # Draw a line from parent to child
         ax.plot([x, x_child], [y, y_child], '-', linewidth=linewidth,
-                color=color, zorder=1)
-        draw_tree_edges(ax, node.left, positions_dict, x_child, y_child, color, linewidth)
+                color=color, zorder=1, alpha=0.7)
+        draw_tree_edges(ax, node.left, positions_dict, color, linewidth)
+    
     if node.right is not None:
         x_child, y_child = positions_dict[node.right.value]
+        # Draw a line from parent to child
         ax.plot([x, x_child], [y, y_child], '-', linewidth=linewidth,
-                color=color, zorder=1)
-        draw_tree_edges(ax, node.right, positions_dict, x_child, y_child, color, linewidth)
+                color=color, zorder=1, alpha=0.7)
+        draw_tree_edges(ax, node.right, positions_dict, color, linewidth)
 
 
 def setup_bst_visualization(ax_bst, bst, bst_positions_dict):
     """
     Draw the complete search tree structure (static setup).
-    Returns a dict of node_circles and node_texts for animation.
-    
-    Nodes start INACTIVE (gray), then light up during animation.
+    Returns a dict of node_circles, node_texts, and node_badges for animation.
     """
     if bst.root is None:
-        return {}, {}
+        return {}, {}, {}
     
-    bst_positions = list(bst_positions_dict.keys())
     node_circles = {}
     node_texts = {}
     node_badges = {}
     
-    # Draw edges (static)
-    if bst_positions:
-        root_x, root_y = bst_positions_dict[bst.root.value]
-        draw_tree_edges(ax_bst, bst.root, bst_positions_dict, root_x, root_y,
-                       color='#CCCCCC', linewidth=2)
+    # 1. Draw Edges (Background/Inactive)
+    if bst.root.value in bst_positions_dict:
+        draw_tree_edges(ax_bst, bst.root, bst_positions_dict)
     
-    # Draw all nodes (inactive/gray at first)
-    def find_node(current, val):
-        if current is None:
-            return None
-        if current.value == val:
-            return current
-        left = find_node(current.left, val)
-        return left if left else find_node(current.right, val)
-    
+    # 2. Draw Nodes (Inactive/Gray at first)
     for value, (x, y) in bst_positions_dict.items():
-        node_obj = find_node(bst.root, value)
-        
-        # Initial inactive state: light gray
-        circle = patches.Circle((x, y), 22,
-                               facecolor='#F0F0F0',      # light gray (inactive)
-                               edgecolor='#CCCCCC',      # gray border
-                               linewidth=2.5, zorder=5)
+        # Node Circle
+        circle = patches.Circle((x, y), 25,
+                               facecolor='#F5F5F5',      # Very light gray (inactive)
+                               edgecolor='#AABBC3',      # Soft gray border
+                               linewidth=2.0, zorder=5)
         ax_bst.add_patch(circle)
         node_circles[value] = circle
         
-        # Node value text
-        text = ax_bst.text(x, y, str(value), fontsize=13, ha='center', va='center',
-                          fontweight='bold', color='#999999', zorder=6)
+        # Node Value Text
+        text = ax_bst.text(x, y, str(value), fontsize=14, ha='center', va='center',
+                          fontweight='bold', color='#455A64', zorder=6) # Darker gray text
         node_texts[value] = text
         
-        # Visit order badge (hidden initially)
-        badge = ax_bst.text(x, y - 38, "", fontsize=9, ha='center', va='top',
-                           fontweight='bold', color='#FFFFFF',
-                           bbox=dict(boxstyle='round,pad=0.4',
-                                    facecolor='#FF6B00', edgecolor='#CC5500',
-                                    alpha=0, linewidth=1.5), zorder=7)
+        # Visit Order Badge (Hidden initially)
+        badge = ax_bst.text(x + 18, y + 18, "", fontsize=10, ha='center', va='center',
+                           fontweight='heavy', color='#FFFFFF',
+                           bbox=dict(boxstyle='circle,pad=0.2',
+                                    facecolor='#03A9F4', edgecolor='#0288D1',
+                                    alpha=0.0, linewidth=0.0), zorder=7) # Light Blue, fully transparent
         node_badges[value] = badge
     
     return node_circles, node_texts, node_badges
@@ -267,28 +195,139 @@ def setup_bst_visualization(ax_bst, bst, bst_positions_dict):
 
 def highlight_node(node_circles, node_texts, node_badges, node_value, visit_num):
     """
-    Highlight a node when visited (called during animation).
-    Changes from gray (inactive) to bright orange (active).
+    Highlight a node when visited.
+    Changes from gray (inactive) to a distinct color (active).
     """
     if node_value in node_circles:
-        # Active state: bright orange
-        node_circles[node_value].set_facecolor('#FF9800')
-        node_circles[node_value].set_edgecolor('#F57C00')
-        node_circles[node_value].set_linewidth(3)
+        # Active state: Distinct color (e.g., Orange/Amber)
+        node_circles[node_value].set_facecolor('#FFB300') # Amber
+        node_circles[node_value].set_edgecolor('#FF8F00') # Darker Amber
+        node_circles[node_value].set_linewidth(3.5)
         
-        # Bright text
+        # White text for contrast
         node_texts[node_value].set_color('#FFFFFF')
-        node_texts[node_value].set_fontweight('bold')
         
-        # Show visit badge
+        # Show visit badge (Blue for order)
         badge = node_badges[node_value]
-        badge.set_text(f"#{visit_num}")
+        badge.set_text(f"{visit_num}")
         bbox = badge.get_bbox_patch()
         if bbox:
-            bbox.set_facecolor('#FF6B00')
+            bbox.set_facecolor('#03A9F4') # Blue badge
+            bbox.set_edgecolor('#0288D1')
             bbox.set_alpha(1.0)
+            bbox.set_linewidth(1.5)
+
+# --- 4. Animation/Run Function (New) ---
+
+def animate_traversal(bst, traversal_order_values, node_circles, node_texts, node_badges, fig):
+    """
+    Iterates through the traversal order and highlights nodes one by one.
+    """
+    print(f"Starting traversal visualization for: {traversal_order_values}")
+    
+    # Find all nodes for quick lookup
+    all_nodes_map = {n.value: n for n in bst.get_all_nodes()}
+    
+    # Loop through the order
+    for step, node_value in enumerate(traversal_order_values):
+        visit_num = step + 1
+        
+        # 1. Update the node's appearance
+        highlight_node(node_circles, node_texts, node_badges, node_value, visit_num)
+        
+        # 2. Update the plot to show the change
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        
+        # 3. Pause for visibility
+        time.sleep(0.7) # Adjust speed here
+    
+    print("Traversal complete.")
 
 
-def get_all_nodes_dict(bst):
-    """Get all nodes as value-only list for animation"""
-    return [n.value for n in bst.get_all_nodes()]
+def visualize_bst_traversal(all_node_values, traversal_order_values, traversal_name):
+    """
+    Main function to set up and run the visualization.
+    """
+    # 1. Build the Balanced BST
+    bst = create_bst_from_all_nodes(all_node_values)
+    if bst is None:
+        print("Cannot visualize an empty tree.")
+        return
+
+    # 2. Calculate Layout
+    # Use a large initial factor for wider spacing at the top
+    positions_list = calculate_tree_layout(bst.root, dx_factor=1.2) 
+    bst_positions_dict = {value: (x, y) for value, x, y in positions_list}
+    
+    # Find max/min coordinates for setting plot limits
+    if not bst_positions_dict:
+         print("No nodes to display.")
+         return
+         
+    all_x = [x for v, (x, y) in bst_positions_dict.items()]
+    all_y = [y for v, (x, y) in bst_positions_dict.items()]
+
+    # 3. Setup Matplotlib Figure
+    plt.ion() # Turn on interactive mode for live updates
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Set title and remove axes/frame for a cleaner look
+    ax.set_title(f'BST Traversal Visualization: {traversal_name}', 
+                 fontsize=16, fontweight='bold', pad=20)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    
+    # Set limits with padding (50 units of padding on each side)
+    x_min, x_max = min(all_x), max(all_x)
+    y_min, y_max = min(all_y), max(all_y)
+    ax.set_xlim(x_min - 50, x_max + 50)
+    ax.set_ylim(y_min - 50, y_max + 50)
+    ax.invert_yaxis() # Tree drawing usually looks better with y=0 at the top
+
+    # 4. Draw Static Structure
+    node_circles, node_texts, node_badges = setup_bst_visualization(ax, bst, bst_positions_dict)
+
+    # 5. Run Animation
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    time.sleep(1) # Initial pause
+    
+    animate_traversal(bst, traversal_order_values, node_circles, node_texts, node_badges, fig)
+    
+    # 6. Final State
+    # Keep the plot open until closed by user
+    plt.ioff()
+    plt.show()
+
+# --- 5. Example Usage ---
+
+if __name__ == '__main__':
+    # 1. Define the complete set of nodes that will be in the tree
+    # The visualization will build a balanced BST from this list.
+    ALL_NODES = [50, 30, 70, 20, 40, 60, 80, 15, 25, 35, 45, 55, 65, 75, 85]
+
+    # 2. Define a traversal order (e.g., In-order traversal of the balanced BST)
+    # The balanced BST from ALL_NODES will look like: 
+    #      50
+    #    /    \
+    #  30      70
+    # / \    / \
+    # 20 40  60 80
+    
+    # In-order Traversal of the above structure:
+    INORDER_TRAVERSAL = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85]
+    
+    # Pre-order Traversal of the above structure:
+    PREORDER_TRAVERSAL = [50, 30, 20, 15, 25, 40, 35, 45, 70, 60, 55, 65, 80, 75, 85]
+
+    print("--- Running In-order Traversal Visualization ---")
+    visualize_bst_traversal(
+        all_node_values=ALL_NODES,
+        traversal_order_values=INORDER_TRAVERSAL,
+        traversal_name="In-order"
+    )

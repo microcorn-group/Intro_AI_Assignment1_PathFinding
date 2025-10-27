@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button
 from matplotlib.patches import FancyBboxPatch
-from bst_visualizer import (BST, create_search_tree_from_visited_order, create_bst_from_all_nodes,
+from bst_visualizer import (BST, create_bst_from_all_nodes,
                             calculate_tree_layout, setup_bst_visualization, highlight_node)
 
 # ------------------------------
