@@ -153,7 +153,7 @@ The interactive visualizer displays a comprehensive side-by-side view:
 
 ![Screenshot3](images/Screenshot%20From%202025-10-28%2008-13-37.png)
 
-![Screenshot4] (images/screenshot.gif)
+![Screenshot4](images/screenshot.gif)
 
 Shows the final result with the search complete. The green final path is overlaid on the red exploration path, the progress bar is at 100% (green), and all visited nodes are highlighted with their visit order numbers.
 
