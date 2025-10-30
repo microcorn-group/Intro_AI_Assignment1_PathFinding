@@ -60,21 +60,21 @@ def print_results(filename, method, goal, num_nodes, path):
 # INTERACTIVE VISUALIZATION WITH UI CONTROLS (+ BST SIDE-BY-SIDE)
 # ------------------------------
 def visualize_search(nodes, edges, visited_order, path, method_name, start, goals, bst=None, filename=None):
-    # Create figure with extra space for controls
-    fig = plt.figure(figsize=(22, 11))
+    # Create figure with extra space for controls and improved layout
+    fig = plt.figure(figsize=(24, 14))
     fig.patch.set_facecolor('#F8F9FA')  # Slightly improved gray
     
-    # Add main title at the top
+    # Add main title at the top with more space
     fig.suptitle('Interactive Pathfinding Algorithm Visualizer', 
-                 fontsize=20, fontweight='bold', color='#1976D2', y=0.98)
+                 fontsize=22, fontweight='bold', color='#1976D2', y=0.99)
     
-    # Main graph axes on the LEFT
+    # Main graph axes on the LEFT with more vertical space
     if bst:
         # If BST is provided, use left side for graph and right side for BST
-        ax = plt.subplot2grid((12, 20), (1, 0), colspan=10, rowspan=8)
+        ax = plt.subplot2grid((18, 24), (1, 0), colspan=12, rowspan=9)
     else:
         # If no BST, use full width
-        ax = plt.subplot2grid((12, 12), (1, 0), colspan=12, rowspan=8)
+        ax = plt.subplot2grid((18, 16), (1, 0), colspan=16, rowspan=9)
     ax.set_facecolor('#FFFFFF')
     ax.set_xlabel("X Coordinate", fontsize=11, fontweight='bold', color='#555555')
     ax.set_ylabel("Y Coordinate", fontsize=11, fontweight='bold', color='#555555')
@@ -104,6 +104,7 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         'is_playing': False,
         'current_frame': 0,
         'path_lines': [],
+        'exploration_lines': [],  # Lines showing the exploration path (red/orange)
         'edge_lines': [],
         'scatters': {},
         'visit_labels': {},
@@ -164,7 +165,7 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         from bst_visualizer import calculate_tree_layout, draw_tree_edges
         import matplotlib.patches as patches
         
-        ax_bst = plt.subplot2grid((12, 20), (1, 10), colspan=10, rowspan=8)
+        ax_bst = plt.subplot2grid((18, 24), (1, 12), colspan=12, rowspan=9)
         ax_bst.set_facecolor('#FFFFFF')  # Clean white background
         ax_bst.set_aspect('equal')
         ax_bst.axis('off')
@@ -195,7 +196,7 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         if bst_positions:
             xs = [pos[1] for pos in bst_positions]
             ys = [pos[2] for pos in bst_positions]
-            margin = 150
+            margin = 300
             ax_bst.set_xlim(min(xs) - margin, max(xs) + margin)
             ax_bst.set_ylim(min(ys) - margin, max(ys) + margin)
 
@@ -220,45 +221,74 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#ECEFF1', 
                   markersize=12, markeredgecolor='#78909C', markeredgewidth=2.5,
                   label='Unvisited', linestyle='None'),
-        plt.Line2D([0], [0], color='#D32F2F', linewidth=4, label='Final Path'),
+        plt.Line2D([0], [0], color='#E53935', linewidth=3.5, label='Exploration Path'),
+        plt.Line2D([0], [0], color='#2E7D32', linewidth=4, label='Final Path'),
     ]
-    legend = ax.legend(handles=legend_elements, loc='upper right', fontsize=9, 
-                      framealpha=0.94, edgecolor='#BDBDBD', fancybox=True,
-                      shadow=False, title='Legend', title_fontsize=10)
+    legend = ax.legend(handles=legend_elements, loc='lower left', fontsize=10, 
+                      framealpha=0.95, edgecolor='#BDBDBD', fancybox=True,
+                      shadow=False, title='Legend', title_fontsize=11,
+                      bbox_to_anchor=(0.0, -0.52))
     legend.get_frame().set_facecolor('#FAFAFA')
-    legend.get_frame().set_linewidth(1)
+    legend.get_frame().set_linewidth(1.5)
 
     # --- Button axes (at bottom with better spacing) ---
-    button_row = 10
-    grid_cols = (12, 20) if bst else (12, 12)
-    btn_cols = 20 if bst else 12
-    btn_data = [('BFS', 0, '#42A5F5', '#1E88E5'), ('DFS', 2, '#42A5F5', '#1E88E5'),
-                ('GBFS', 4, '#FFA726', '#F57C00'), ('A*', 6, '#FFA726', '#F57C00'),
-                ('Reset', 8, '#66BB6A', '#4CAF50'), ('Pause', 10, '#FFCA28', '#FFA000')]
+    if bst:
+        button_row = 16
+        progress_row = 15
+        grid_cols = (18, 24)
+        btn_cols = 24
+    else:
+        button_row = 16
+        progress_row = 15
+        grid_cols = (18, 16)
+        btn_cols = 16
+    
+    # --- Progress bar (video-like) ---
+    ax_progress = plt.subplot2grid(grid_cols, (progress_row, 0), colspan=btn_cols, rowspan=1)
+    ax_progress.set_facecolor('#E0E0E0')
+    ax_progress.set_xlim(0, 1)
+    ax_progress.set_ylim(0, 1)
+    ax_progress.axis('off')
+    
+    # Add border to progress bar
+    progress_bar_rect = plt.Rectangle((0.02, 0.2), 0.96, 0.6, 
+                                      fill=False, edgecolor='#424242', 
+                                      linewidth=2, transform=ax_progress.transAxes)
+    ax_progress.add_patch(progress_bar_rect)
+    
+    # Progress fill (will be updated)
+    progress_fill = plt.Rectangle((0.02, 0.2), 0, 0.6, 
+                                  fill=True, facecolor='#1976D2', 
+                                  alpha=0.8, transform=ax_progress.transAxes)
+    ax_progress.add_patch(progress_fill)
+    
+    # Progress text in the middle
+    progress_text = ax_progress.text(0.5, 0.5, '0%', 
+                                    transform=ax_progress.transAxes,
+                                    ha='center', va='center',
+                                    fontsize=12, fontweight='bold',
+                                    color='#000000', zorder=10)
+    
+    state['progress_fill'] = progress_fill
+    state['progress_text'] = progress_text
+
+    # --- Button controls ---
+    btn_data = [('Back', 0, '#1976D2', '#0D47A1'), ('Pause', 4, '#F57C00', '#E65100'),
+                ('Forward', 8, '#1976D2', '#0D47A1'), ('Restart', 12, '#388E3C', '#1B5E20')]
     
     buttons = {}
     for label, col, color, hover in btn_data:
-        ax_btn = plt.subplot2grid(grid_cols, (button_row, col), colspan=2, rowspan=1)
+        ax_btn = plt.subplot2grid(grid_cols, (button_row, col), colspan=3, rowspan=1)
         btn = Button(ax_btn, label, color=color, hovercolor=hover)
-        btn.label.set_fontsize(10)
+        btn.label.set_fontsize(11)
         btn.label.set_fontweight('bold')
         btn.label.set_color('#FFFFFF')
+        # Add some styling to the button
+        ax_btn.spines['top'].set_visible(False)
+        ax_btn.spines['right'].set_visible(False)
+        ax_btn.spines['bottom'].set_linewidth(2)
+        ax_btn.spines['left'].set_linewidth(2)
         buttons[label] = btn
-
-    # Function to run search algorithm
-    def run_algorithm(method):
-        state['current_method'] = method
-        
-        if method == "BFS":
-            goal, count, new_path, new_visited = bfs(edges, start, goals)
-        elif method == "DFS":
-            goal, count, new_path, new_visited = dfs(edges, start, goals)
-        elif method == "GBFS":
-            goal, count, new_path, new_visited = gbfs(nodes, edges, start, goals)
-        elif method == "A*":
-            goal, count, new_path, new_visited = astar(nodes, edges, start, goals)
-        
-        return goal, count, new_path, new_visited
 
     # Reset visualization
     def reset_viz():
@@ -266,6 +296,11 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         for line in state['path_lines']:
             line.remove()
         state['path_lines'].clear()
+        
+        # Clear exploration lines
+        for line in state['exploration_lines']:
+            line.remove()
+        state['exploration_lines'].clear()
         
         # Reset node colors using COLORS constant
         for node in state['scatters']:
@@ -302,6 +337,132 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         ax.set_title("", fontsize=15, fontweight='bold', pad=20, color='#424242')
         fig.canvas.draw_idle()
 
+    # Function to manually draw a specific frame (for stepping)
+    def draw_frame(frame, visited_order, path, method):
+        """Manually draw a specific frame without triggering final path logic"""
+        state['current_frame'] = frame
+        
+        # Extract just the node names from visited_order (which may contain tuples)
+        visited_nodes = [v[0] if isinstance(v, tuple) else v for v in visited_order]
+        
+        # First, clear and show all visited nodes up to this frame
+        for idx, node in enumerate(visited_nodes):
+            if idx < frame:
+                # This node should be shown as visited
+                if node not in (start, *goals):
+                    state['scatters'][node].set_color('#FF9800')
+                    state['scatters'][node].set_edgecolor('#F57C00')
+                    state['scatters'][node].set_alpha(0.95)
+                
+                state['visit_labels'][node].set_text(f"#{idx + 1}")
+                state['visit_labels'][node].set_bbox(dict(boxstyle='round,pad=0.3', 
+                                                         facecolor='#E3F2FD', 
+                                                         edgecolor='#2196F3', 
+                                                         alpha=0.9, linewidth=1))
+                
+                # Highlight in BST
+                if state['bst_data']:
+                    highlight_node(state['bst_data']['node_circles'],
+                                  state['bst_data']['node_texts'],
+                                  state['bst_data']['node_badges'],
+                                  node, idx + 1)
+            else:
+                # This node should not be highlighted yet
+                if node not in (start, *goals):
+                    state['scatters'][node].set_color('#ECEFF1')
+                    state['scatters'][node].set_edgecolor('#78909C')
+                    state['scatters'][node].set_alpha(0.95)
+                
+                state['visit_labels'][node].set_text("")
+                state['visit_labels'][node].set_bbox(dict(boxstyle='round,pad=0.3', 
+                                                         facecolor='#E3F2FD', 
+                                                         edgecolor='#2196F3', 
+                                                         alpha=0, linewidth=1))
+        
+        # Draw exploration edges (red lines connecting visited nodes - using parent information)
+        for line in state['exploration_lines']:
+            line.remove()
+        state['exploration_lines'].clear()
+        
+        # Draw all exploration edges up to the current frame
+        for idx in range(min(frame, len(visited_order))):
+            node_info = visited_order[idx]
+            # visited_order contains (node, parent) tuples
+            if isinstance(node_info, tuple):
+                node, parent = node_info
+            else:
+                node = node_info
+                parent = None
+            
+            # Draw line from parent to this node
+            if parent is not None and parent in nodes and node in nodes:
+                x1, y1 = nodes[parent]
+                x2, y2 = nodes[node]
+                line, = ax.plot([x1, x2], [y1, y2], color='#E53935', 
+                              linewidth=2.5, zorder=3, alpha=0.6, 
+                              solid_capstyle='round')
+                state['exploration_lines'].append(line)
+        
+        # Update info box for searching state
+        if frame < len(visited_nodes):
+            current = visited_nodes[frame]
+            progress = (frame / len(visited_nodes)) * 100
+            progress_bar = '█' * int(progress / 10) + '░' * (10 - int(progress / 10))
+            
+            # Update video-like progress bar
+            progress_ratio = frame / len(visited_nodes)
+            state['progress_fill'].set_width(0.96 * progress_ratio)
+            state['progress_text'].set_text(f'{progress:.0f}%')
+            
+            info_box.set_text(f"Algorithm: {method}\n"
+                            f"Nodes Explored: {frame} / {len(visited_nodes)}\n"
+                            f"Current Node: {current}\n"
+                            f"Status: Searching...")
+            
+            ax.set_title(f"Path Finding Visualization — {method} Algorithm", 
+                        fontsize=15, fontweight='bold', pad=20, color='#1976D2')
+        
+        elif frame >= len(visited_nodes):
+            # Update progress bar to 100%
+            state['progress_fill'].set_width(0.96)
+            state['progress_text'].set_text('100%')
+            state['progress_fill'].set_facecolor('#4CAF50')
+            
+            # Show final path in green (on top of exploration path)
+            for line in state['path_lines']:
+                line.remove()
+            state['path_lines'].clear()
+            
+            # Calculate total path cost and draw final path in green
+            path_cost = 0
+            for i in range(len(path) - 1):
+                x1, y1 = nodes[path[i]]
+                # Draw green line for the final optimal path (thicker, on top)
+                line, = ax.plot([x1, x2], [y1, y2], color='#2E7D32', 
+                              linewidth=6, zorder=5, alpha=0.95, 
+                              solid_capstyle='round', label='Final Path' if i == 0 else '')
+                state['path_lines'].append(line)
+                
+                # Calculate cost for this edge
+                for neighbor, cost in edges.get(path[i], []):
+                    if neighbor == path[i + 1]:
+                        path_cost += cost
+                        break
+            
+            progress_bar = '█' * 10
+            visited_nodes_count = len([v[0] if isinstance(v, tuple) else v for v in visited_order])
+            info_box.set_text(f"Algorithm: {method}\n"
+                            f"Progress: [{progress_bar}] 100%\n"
+                            f"Nodes Explored: {visited_nodes_count}\n"
+                            f"Path Length: {len(path)} nodes\n"
+                            f"Total Cost: {path_cost:.1f}\n"
+                            f"Status: COMPLETE!")
+            info_box.set_bbox(dict(boxstyle='round,pad=0.8', facecolor='#C8E6C9', 
+                                  edgecolor='#4CAF50', alpha=0.95, linewidth=2.5))
+            
+            ax.set_title(f"Path Finding Visualization — {method} Algorithm (COMPLETE)", 
+                        fontsize=15, fontweight='bold', pad=20, color='#2E7D32')
+
     # Animation update function with enhanced visuals
     def update(frame, visited_order, path, method):
         state['current_frame'] = frame
@@ -332,12 +493,35 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                               state['bst_data']['node_badges'],
                               current, visit_num)
             
+            # Draw exploration edges (red lines connecting visited nodes as we explore)
+            # Use parent information from visited_order tuple (node, parent)
+            if frame > 0:
+                current_info = visited_order[frame - 1]
+                if isinstance(current_info, tuple):
+                    node, parent = current_info
+                else:
+                    node = current_info
+                    parent = None
+                
+                # Draw line from parent to this node
+                if parent is not None and parent in nodes and node in nodes:
+                    x1, y1 = nodes[parent]
+                    x2, y2 = nodes[node]
+                    line, = ax.plot([x1, x2], [y1, y2], color='#E53935', 
+                                  linewidth=2.5, zorder=3, alpha=0.6, 
+                                  solid_capstyle='round')
+                    state['exploration_lines'].append(line)
+            
             # Calculate progress percentage
             progress = (visit_num / len(visited_nodes)) * 100
             progress_bar = '█' * int(progress / 10) + '░' * (10 - int(progress / 10))
             
+            # Update video-like progress bar
+            progress_ratio = visit_num / len(visited_nodes)
+            state['progress_fill'].set_width(0.96 * progress_ratio)
+            state['progress_text'].set_text(f'{progress:.0f}%')
+            
             info_box.set_text(f"Algorithm: {method}\n"
-                            f"Progress: [{progress_bar}] {progress:.0f}%\n"
                             f"Nodes Explored: {visit_num} / {len(visited_nodes)}\n"
                             f"Current Node: {current}\n"
                             f"Status: Searching...")
@@ -346,18 +530,19 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                         fontsize=15, fontweight='bold', pad=20, color='#1976D2')
             
         elif frame == len(visited_nodes):
-            # Draw final path with enhanced styling
+            # Draw final path in green on top of exploration path (don't clear exploration lines!)
             for line in state['path_lines']:
                 line.remove()
             state['path_lines'].clear()
             
-            # Calculate total path cost
+            # Calculate total path cost and draw final path in green
             path_cost = 0
             for i in range(len(path) - 1):
                 x1, y1 = nodes[path[i]]
                 x2, y2 = nodes[path[i + 1]]
-                line, = ax.plot([x1, x2], [y1, y2], color='#D32F2F', 
-                              linewidth=5, zorder=4, alpha=0.85, 
+                # Draw green line for the final optimal path (thicker, on top)
+                line, = ax.plot([x1, x2], [y1, y2], color='#2E7D32', 
+                              linewidth=6, zorder=5, alpha=0.95, 
                               solid_capstyle='round')
                 state['path_lines'].append(line)
                 
@@ -367,10 +552,8 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
                         path_cost += cost
                         break
             
-            progress_bar = '█' * 10
             visited_nodes_count = len([v[0] if isinstance(v, tuple) else v for v in visited_order])
             info_box.set_text(f"Algorithm: {method}\n"
-                            f"Progress: [{progress_bar}] 100%\n"
                             f"Nodes Explored: {visited_nodes_count}\n"
                             f"Path Length: {len(path)} nodes\n"
                             f"Total Cost: {path_cost:.1f}\n"
@@ -383,34 +566,58 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         
         return [info_box]
 
-    # Button callbacks - Algorithm runner factory
-    def create_algo_callback(method_name):
-        def callback(event):
-            reset_viz()
-            goal, count, new_path, new_visited = run_algorithm(method_name)
-            if goal:
-                state['is_playing'] = True
-                if state['animation']:
-                    state['animation'].event_source.stop()
-                state['animation'] = animation.FuncAnimation(
-                    fig, update, fargs=(new_visited, new_path, method_name),
-                    frames=len(new_visited) + 15, interval=700, repeat=False, blit=False)
-                fig.canvas.draw_idle()
-        return callback
+    # Button callbacks
+    def on_back(event):
+        """Step backward through the animation"""
+        if state['animation'] and state['animation'].event_source:
+            state['animation'].event_source.stop()
+        state['is_playing'] = False
+        buttons['Pause'].label.set_text('Resume')
+        
+        # Calculate the previous frame
+        visited_nodes = [v[0] if isinstance(v, tuple) else v for v in visited_order]
+        max_frame = len(visited_nodes) + 15
+        new_frame = max(0, state['current_frame'] - 1)
+        
+        # Use the dedicated frame drawing function
+        reset_viz()
+        draw_frame(new_frame, visited_order, path, method_name)
+        fig.canvas.draw_idle()
     
-    on_bfs = create_algo_callback("BFS")
-    on_dfs = create_algo_callback("DFS")
-    on_gbfs = create_algo_callback("GBFS")
-    on_astar = create_algo_callback("A*")
+    def on_forward(event):
+        """Step forward through the animation"""
+        if state['animation'] and state['animation'].event_source:
+            state['animation'].event_source.stop()
+        state['is_playing'] = False
+        buttons['Pause'].label.set_text('Resume')
+        
+        # Calculate the next frame
+        visited_nodes = [v[0] if isinstance(v, tuple) else v for v in visited_order]
+        max_frame = len(visited_nodes) + 15
+        new_frame = min(max_frame - 1, state['current_frame'] + 1)
+        
+        # Use the dedicated frame drawing function
+        reset_viz()
+        draw_frame(new_frame, visited_order, path, method_name)
+        fig.canvas.draw_idle()
 
-    def on_reset(event):
-        if state['animation']:
+    def on_restart(event):
+        """Restart the animation from the beginning"""
+        if state['animation'] and state['animation'].event_source:
             state['animation'].event_source.stop()
         state['is_playing'] = False
         reset_viz()
+        
+        # Restart the animation
+        state['is_playing'] = True
+        buttons['Pause'].label.set_text('Pause')
+        state['animation'] = animation.FuncAnimation(
+            fig, update, fargs=(visited_order, path, method_name),
+            frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
+        fig.canvas.draw_idle()
 
     def on_pause(event):
-        if state['animation']:
+        if state['animation'] and state['animation'].event_source:
             if state['is_playing']:
                 state['animation'].event_source.stop()
                 state['is_playing'] = False
@@ -422,12 +629,10 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
             fig.canvas.draw_idle()
 
     # Connect buttons
-    buttons['BFS'].on_clicked(on_bfs)
-    buttons['DFS'].on_clicked(on_dfs)
-    buttons['GBFS'].on_clicked(on_gbfs)
-    buttons['A*'].on_clicked(on_astar)
-    buttons['Reset'].on_clicked(on_reset)
+    buttons['Back'].on_clicked(on_back)
+    buttons['Forward'].on_clicked(on_forward)
     buttons['Pause'].on_clicked(on_pause)
+    buttons['Restart'].on_clicked(on_restart)
 
     # Add title to the figure
     fig.suptitle('Interactive Pathfinding Algorithm Visualizer', 
@@ -439,7 +644,7 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
         fig, update, fargs=(visited_order, path, method_name),
         frames=len(visited_order) + 15, interval=600, repeat=False, blit=False)
 
-    plt.subplots_adjust(left=0.04, right=0.97, top=0.97, bottom=0.12, wspace=0.25, hspace=0.4)
+    plt.subplots_adjust(left=0.04, right=0.97, top=0.94, bottom=0.12, wspace=0.25, hspace=0.4)
     plt.show()
 
 # ------------------------------
@@ -543,13 +748,103 @@ def astar(nodes, edges, start, goal):
     return None, count, [], visited_order
 
 # ------------------------------
-# CUSTOM METHODS (REUSE EXISTING)
+# CUSTOM UNINFORMED SEARCH (CUS1) – UNIFORM COST SEARCH (UCS)
 # ------------------------------
+# Description:
+#   - Uniform Cost Search is an uninformed search algorithm that always expands the node
+#     with the lowest cumulative cost from the start node.
+#   - It is similar to Dijkstra’s algorithm.
+#   - Unlike DFS or BFS, UCS guarantees finding the least-cost path, even when edge costs vary.
+# 
+# Characteristics:
+#   • Type: Uninformed (no heuristic)
+#   • Strategy: Expands the lowest total cost (g(n)) node first
+#   • Optimal: Yes (if all edge costs are non-negative)
+#   • Complete: Yes
+#
+# Implementation Details:
+#   - A priority queue (heap) is used to always choose the next lowest-cost path.
+#   - The frontier stores tuples of (total_cost, node, path, parent).
+#   - Nodes are visited in order of increasing path cost until a goal is reached.
+def ucs(edges, start, goal):
+    frontier = [(0, start, [start], None)]
+    visited = set()
+    visited_order = []
+    count = 0
+
+    while frontier:
+        cost, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goal:
+            return node, count, path, visited_order
+
+        if node not in visited:
+            visited.add(node)
+            for neighbor, edge_cost in edges.get(node, []):
+                if neighbor not in visited:
+                    heapq.heappush(frontier, (cost + edge_cost, neighbor, path + [neighbor], node))
+
+    return None, count, [], visited_order
+
 def custom_uninformed(edges, start, goal):
-    return dfs(edges, start, goal)
+    # Wrapper for the CUS1 algorithm
+    # Calls the Uniform Cost Search (UCS) implementation
+    return ucs(edges, start, goal)
+
+# ------------------------------
+# CUSTOM INFORMED SEARCH (CUS2) – WEIGHTED A* SEARCH
+# ------------------------------
+# Description:
+#   - Weighted A* is a variant of A* search that uses a weighted heuristic function:
+#         f(n) = g(n) + w * h(n)
+#     where:
+#         g(n) = actual cost from start to current node
+#         h(n) = estimated cost from current node to goal
+#         w    = weight factor (>1) that biases the search toward the heuristic.
+#   - When w = 1, it behaves like normal A*.
+#   - When w > 1, it becomes greedier (faster but less optimal).
+#
+# Characteristics:
+#   • Type: Informed
+#   • Strategy: Balances actual and estimated cost based on the weight factor
+#   • Optimal: Not guaranteed (for w > 1)
+#   • Complete: Yes (for consistent heuristic)
+#
+# Implementation Details:
+#   - Uses a priority queue ordered by the weighted f(n) value.
+#   - Can trade accuracy for speed depending on the weight chosen.
+#   - Ideal for large graphs where exact optimality is less important than faster performance.
+def weighted_astar(nodes, edges, start, goal, weight=1.5):
+    goal = goal[0]
+    frontier = [(0, 0, start, [start], None)]
+    visited = {}
+    visited_order = []
+    count = 0
+
+    while frontier:
+        f, g, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        if node == goal:
+            return node, count, path, visited_order
+
+        if node not in visited or g < visited[node]:
+            visited[node] = g
+            for neighbor, cost in edges.get(node, []):
+                g2 = g + cost
+                f2 = g2 + weight * heuristic(neighbor, goal, nodes)
+                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
+
+    return None, count, [], visited_order
+
 
 def custom_informed(nodes, edges, start, goal):
-    return astar(nodes, edges, start, goal)
+    # Wrapper for the CUS2 algorithm
+    # Calls the Weighted A* implementation with weight = 1.5
+    return weighted_astar(nodes, edges, start, goal, weight=1.5)
 
 # ------------------------------
 # MAIN EXECUTION
@@ -570,13 +865,15 @@ if __name__ == "__main__":
         goal, count, path, visited_order = gbfs(nodes, edges, origin, destinations)
     elif method in ("A*", "AS"):
         goal, count, path, visited_order = astar(nodes, edges, origin, destinations)
-    elif method == "CUS1":
+    elif method in ("UCS", "CUS1"):
         goal, count, path, visited_order = custom_uninformed(edges, origin, destinations)
-    elif method == "CUS2":
+    elif method in ("WA*", "CUS2"):
         goal, count, path, visited_order = custom_informed(nodes, edges, origin, destinations)
     else:
-        print("Unknown method:", method)
+        print(f"Unknown method: {method}")
+        print("Available methods: DFS, BFS, GBFS, A*, UCS/CUS1, WA*/CUS2")
         sys.exit(1)
+
 
     if goal:
         print_results(filename, method, goal, count, path)

@@ -102,31 +102,54 @@ def create_bst_from_all_nodes(all_nodes):
 
 # --- 3. Layout and Drawing Functions (Aesthetics Refined) ---
 
-def calculate_tree_layout(node, x=0, y=0, dx_factor=1.0):
+def calculate_tree_layout(node, x=0, y=0, dx=150):
     """
-    Calculate positions for tree nodes using a simple recursive layout.
-    dx_factor controls horizontal spacing reduction at deeper levels.
+    Calculate positions for tree nodes using Reingold-Tilford algorithm variant.
+    This prevents edge crossings by calculating subtree widths.
     """
     if node is None:
         return []
     
-    # Use a base spacing and reduce it for deeper levels
-    base_dx = 150 
-    dx = base_dx * dx_factor
-    dy = 100 # Vertical spacing
+    dy = 120  # Vertical spacing
     
     positions = [(node.value, x, y)]
     
-    # Adjust dx_factor for the next level
-    next_dx_factor = dx_factor * 0.65
+    # Get widths of left and right subtrees to position children correctly
+    left_positions = []
+    right_positions = []
     
     if node.left is not None:
-        positions.extend(calculate_tree_layout(node.left, x - dx, y - dy, next_dx_factor))
+        # Calculate the width needed for the left subtree
+        left_width = get_subtree_width(node.left)
+        left_x = x - dx - (left_width * dx) / 2
+        left_positions = calculate_tree_layout(node.left, left_x, y - dy, dx * 0.8)
+        positions.extend(left_positions)
     
     if node.right is not None:
-        positions.extend(calculate_tree_layout(node.right, x + dx, y - dy, next_dx_factor))
+        # Calculate the width needed for the right subtree
+        right_width = get_subtree_width(node.right)
+        right_x = x + dx + (right_width * dx) / 2
+        right_positions = calculate_tree_layout(node.right, right_x, y - dy, dx * 0.8)
+        positions.extend(right_positions)
     
     return positions
+
+
+def get_subtree_width(node):
+    """
+    Calculate the width (number of leaf nodes) of a subtree.
+    Used to position nodes to avoid edge crossings.
+    """
+    if node is None:
+        return 0
+    
+    if node.left is None and node.right is None:
+        return 1  # Leaf node
+    
+    left_width = get_subtree_width(node.left)
+    right_width = get_subtree_width(node.right)
+    
+    return left_width + right_width if (left_width + right_width) > 0 else 1
 
 
 def draw_tree_edges(ax, node, positions_dict, color='#AABBC3', linewidth=2.0):
