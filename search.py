@@ -748,50 +748,54 @@ def astar(nodes, edges, start, goal):
     return None, count, [], visited_order
 
 # ------------------------------
-# CUSTOM UNINFORMED SEARCH (CUS1) – UNIFORM COST SEARCH (UCS)
+# CUSTOM UNINFORMED SEARCH (CUS1) – UNIFORM COST SEARCH WITH TIE-BREAKING BY HEURISTIC
 # ------------------------------
 # Description:
-#   - Uniform Cost Search is an uninformed search algorithm that always expands the node
-#     with the lowest cumulative cost from the start node.
-#   - It is similar to Dijkstra’s algorithm.
-#   - Unlike DFS or BFS, UCS guarantees finding the least-cost path, even when edge costs vary.
+#   - Uniform Cost Search with Tie-Breaking by Heuristic is a cost-prioritized search that
+#     expands nodes with the lowest cumulative cost first (like UCS/Dijkstra).
+#   - When two nodes have equal cost, the heuristic is used as a tiebreaker to guide the search.
+#   - This combines the optimality guarantee of UCS with some heuristic guidance.
 # 
 # Characteristics:
-#   • Type: Uninformed (no heuristic)
-#   • Strategy: Expands the lowest total cost (g(n)) node first
+#   • Type: Hybrid (uninformed primary, heuristic as tiebreaker)
+#   • Strategy: Expands lowest g(n), uses h(n) to break ties
 #   • Optimal: Yes (if all edge costs are non-negative)
 #   • Complete: Yes
 #
 # Implementation Details:
-#   - A priority queue (heap) is used to always choose the next lowest-cost path.
-#   - The frontier stores tuples of (total_cost, node, path, parent).
-#   - Nodes are visited in order of increasing path cost until a goal is reached.
-def ucs(edges, start, goal):
-    frontier = [(0, start, [start], None)]
+#   - A priority queue (heap) is used to expand nodes by cost first, heuristic second.
+#   - The frontier stores tuples of (cost, heuristic, node, path, parent).
+#   - When costs are equal, nodes closer to goal (lower h) are expanded first.
+#   - Guarantees optimal solution like UCS, but explores fewer nodes due to heuristic guidance.
+def ucs_with_heuristic_tiebreak(nodes, edges, start, goal):
+    goal = goal[0]
+    frontier = [(0, 0, start, [start], None)]
     visited = set()
     visited_order = []
     count = 0
 
     while frontier:
-        cost, node, path, parent = heapq.heappop(frontier)
+        cost, h, node, path, parent = heapq.heappop(frontier)
         count += 1
         visited_order.append((node, parent))
 
-        if node in goal:
+        if node == goal:
             return node, count, path, visited_order
 
         if node not in visited:
             visited.add(node)
             for neighbor, edge_cost in edges.get(node, []):
                 if neighbor not in visited:
-                    heapq.heappush(frontier, (cost + edge_cost, neighbor, path + [neighbor], node))
+                    new_cost = cost + edge_cost
+                    h_neighbor = heuristic(neighbor, goal, nodes)
+                    heapq.heappush(frontier, (new_cost, h_neighbor, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
-def custom_uninformed(edges, start, goal):
+def custom_uninformed(nodes, edges, start, goal):
     # Wrapper for the CUS1 algorithm
-    # Calls the Uniform Cost Search (UCS) implementation
-    return ucs(edges, start, goal)
+    # Calls Uniform Cost Search with Tie-Breaking by Heuristic
+    return ucs_with_heuristic_tiebreak(nodes, edges, start, [goal] if isinstance(goal, str) else goal)
 
 # ------------------------------
 # CUSTOM INFORMED SEARCH (CUS2) – WEIGHTED A* SEARCH
@@ -866,7 +870,7 @@ if __name__ == "__main__":
     elif method in ("A*", "AS"):
         goal, count, path, visited_order = astar(nodes, edges, origin, destinations)
     elif method in ("UCS", "CUS1"):
-        goal, count, path, visited_order = custom_uninformed(edges, origin, destinations)
+        goal, count, path, visited_order = custom_uninformed(nodes, edges, origin, destinations)
     elif method in ("WA*", "CUS2"):
         goal, count, path, visited_order = custom_informed(nodes, edges, origin, destinations)
     else:

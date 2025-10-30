@@ -70,7 +70,7 @@ Supported methods (case-insensitive):
 - `BFS` — Breadth-First Search (unweighted)
 - `GBFS` — Greedy Best-First Search (weighted, uses heuristic only)
 - `A*` or `AS` — A* Search (weighted, uses f = g + h)
-- `CUS1` — Custom uninformed search (Uniform Cost Search - UCS)
+- `CUS1` — Custom uninformed search (Uniform Cost Search with Tie-Breaking by Heuristic)
 - `CUS2` — Custom informed search (Weighted A* with w=1.5)
 
 Example (bash/PowerShell):
@@ -130,6 +130,8 @@ Located at the bottom of the window:
 - **BFS (Breadth-First Search)**: Uninformed, explores breadth-first ensuring shortest path in unweighted graphs
 - **GBFS (Greedy Best-First Search)**: Informed, uses heuristic to greedily select most promising node
 - **A* Search**: Informed, combines actual cost and heuristic (f = g + h) for optimal pathfinding
+- **CUS1 (UCS with Tie-Breaking by Heuristic)**: Hybrid, expands lowest-cost nodes first (like UCS), uses heuristic as tiebreaker when costs are equal. Maintains optimality while being more efficient than plain UCS.
+- **CUS2 (Weighted A*)**: Informed, uses weighted heuristic (f = g + 1.5·h) to trade optimality for speed
 
 ### Heuristic Function
 Euclidean distance is used for informed algorithms:
