@@ -437,7 +437,6 @@ def visualize_search(nodes, edges, visited_order, path, method_name, start, goal
             path_cost = 0
             for i in range(len(path) - 1):
                 x1, y1 = nodes[path[i]]
-                x2, y2 = nodes[path[i + 1]]
                 # Draw green line for the final optimal path (thicker, on top)
                 line, = ax.plot([x1, x2], [y1, y2], color='#2E7D32', 
                               linewidth=6, zorder=5, alpha=0.95, 
