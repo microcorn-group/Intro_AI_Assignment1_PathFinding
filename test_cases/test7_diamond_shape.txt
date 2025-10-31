@@ -1,0 +1,21 @@
+Nodes:
+Top: (3,0)
+Left: (0,3)
+Right: (6,3)
+Bottom: (3,6)
+
+Edges:
+(Top,Left): 5
+(Left,Top): 5
+(Top,Right): 4
+(Right,Top): 4
+(Left,Bottom): 6
+(Bottom,Left): 6
+(Right,Bottom): 5
+(Bottom,Right): 5
+
+Origin:
+Top
+
+Destinations:
+Bottom

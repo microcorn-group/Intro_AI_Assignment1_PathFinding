@@ -1,0 +1,24 @@
+Nodes:
+A: (0,0)
+B: (2,0)
+C: (4,0)
+D: (1,2)
+E: (3,2)
+
+Edges:
+(A,B): 5
+(B,A): 5
+(B,C): 5
+(C,B): 5
+(A,D): 2
+(D,A): 2
+(D,E): 2
+(E,D): 2
+(E,C): 2
+(C,E): 2
+
+Origin:
+A
+
+Destinations:
+C

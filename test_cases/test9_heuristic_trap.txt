@@ -1,0 +1,27 @@
+Nodes:
+Start: (0,0)
+Trap: (8,1)
+Goal: (10,0)
+Path1: (2,0)
+Path2: (4,0)
+Path3: (6,0)
+
+Edges:
+(Start,Path1): 2
+(Path1,Start): 2
+(Path1,Path2): 2
+(Path2,Path1): 2
+(Path2,Path3): 2
+(Path3,Path2): 2
+(Path3,Goal): 2
+(Goal,Path3): 2
+(Start,Trap): 9
+(Trap,Start): 9
+(Trap,Goal): 3
+(Goal,Trap): 3
+
+Origin:
+Start
+
+Destinations:
+Goal

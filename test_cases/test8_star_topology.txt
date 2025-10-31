@@ -1,0 +1,34 @@
+Nodes:
+Center: (5,5)
+N: (5,0)
+NE: (8,2)
+E: (10,5)
+SE: (8,8)
+S: (5,10)
+SW: (2,8)
+W: (0,5)
+NW: (2,2)
+
+Edges:
+(Center,N): 5
+(N,Center): 5
+(Center,NE): 4
+(NE,Center): 4
+(Center,E): 5
+(E,Center): 5
+(Center,SE): 4
+(SE,Center): 4
+(Center,S): 5
+(S,Center): 5
+(Center,SW): 4
+(SW,Center): 4
+(Center,W): 5
+(W,Center): 5
+(Center,NW): 4
+(NW,Center): 4
+
+Origin:
+W
+
+Destinations:
+E
