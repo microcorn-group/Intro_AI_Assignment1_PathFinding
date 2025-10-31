@@ -1,0 +1,95 @@
+# ============================================================================
+# TEST COMMANDS - Copy and paste these into your terminal
+# ============================================================================
+
+# STEP 1: Activate virtual environment
+source .venv/bin/activate
+
+# ============================================================================
+# INDIVIDUAL VISUAL TESTS - Interactive UI with buttons
+# ============================================================================
+
+# Test 0: Large Complex Graph (com_path.txt - 18 nodes)
+python search.py com_path.txt DFS
+python search.py com_path.txt BFS
+python search.py com_path.txt GBFS
+python search.py com_path.txt AS
+python search.py com_path.txt CUS1
+python search.py com_path.txt CUS2
+
+# Test 1: Simple Linear Path (5 nodes)
+python search.py test_cases/test1_simple_linear.txt DFS
+python search.py test_cases/test1_simple_linear.txt BFS
+python search.py test_cases/test1_simple_linear.txt AS
+
+# Test 2: Two Paths Comparison (Short expensive vs Long cheap)
+python search.py test_cases/test2_two_paths.txt DFS
+python search.py test_cases/test2_two_paths.txt GBFS
+python search.py test_cases/test2_two_paths.txt AS
+python search.py test_cases/test2_two_paths.txt CUS1
+
+# Test 3: Multiple Goals (3 different goal options)
+python search.py test_cases/test3_multiple_goals.txt DFS
+python search.py test_cases/test3_multiple_goals.txt BFS
+python search.py test_cases/test3_multiple_goals.txt AS
+
+# Test 4: Grid Topology (3x3 grid)
+python search.py test_cases/test4_grid_graph.txt DFS
+python search.py test_cases/test4_grid_graph.txt BFS
+python search.py test_cases/test4_grid_graph.txt GBFS
+python search.py test_cases/test4_grid_graph.txt AS
+
+# Test 5: Complex Weighted Graph (Varying edge costs)
+python search.py test_cases/test5_complex_weighted.txt DFS
+python search.py test_cases/test5_complex_weighted.txt AS
+python search.py test_cases/test5_complex_weighted.txt CUS1
+
+# Test 6: Unreachable Goal (Disconnected graph - shows 'No path')
+python search.py test_cases/test6_unreachable_goal.txt DFS
+python search.py test_cases/test6_unreachable_goal.txt BFS
+python search.py test_cases/test6_unreachable_goal.txt AS
+
+# Test 7: Diamond Topology (Symmetric paths)
+python search.py test_cases/test7_diamond_shape.txt DFS
+python search.py test_cases/test7_diamond_shape.txt AS
+python search.py test_cases/test7_diamond_shape.txt CUS1
+
+# Test 8: Star Topology (Hub-and-spoke graph)
+python search.py test_cases/test8_star_topology.txt BFS
+python search.py test_cases/test8_star_topology.txt GBFS
+python search.py test_cases/test8_star_topology.txt AS
+
+# Test 9: Heuristic Trap (Misleading heuristic)
+python search.py test_cases/test9_heuristic_trap.txt DFS
+python search.py test_cases/test9_heuristic_trap.txt GBFS
+python search.py test_cases/test9_heuristic_trap.txt AS
+python search.py test_cases/test9_heuristic_trap.txt CUS1
+
+# ============================================================================
+# RECOMMENDED: Quick Demo Sequence (5 best tests)
+# ============================================================================
+python search.py com_path.txt BFS
+python search.py test_cases/test2_two_paths.txt AS
+python search.py test_cases/test4_grid_graph.txt GBFS
+python search.py test_cases/test6_unreachable_goal.txt BFS
+python search.py test_cases/test9_heuristic_trap.txt AS
+
+# ============================================================================
+# Algorithm Comparison (Same graph, all 6 algorithms)
+# ============================================================================
+python search.py com_path.txt DFS
+python search.py com_path.txt BFS
+python search.py com_path.txt GBFS
+python search.py com_path.txt AS
+python search.py com_path.txt CUS1
+python search.py com_path.txt CUS2
+
+# ============================================================================
+# ALGORITHM CODES:
+# DFS   = Depth-First Search
+# BFS   = Breadth-First Search
+# GBFS  = Greedy Best-First Search
+# AS    = A* Search
+# CUS1  = Custom Uninformed (UCS with heuristic tiebreak)
+# CUS2  = Custom Informed (Weighted A*, w=1.5)
+# ============================================================================
