@@ -185,14 +185,6 @@ You can create your own graphs using the same format following the exanmples ubd
 
 ---
 
-### 🎥 Demo GIFs
-> *(Insert your recorded animations here — A*, BFS, and CUS1 are great showcases!)*
-
-![Demo GIF 1](images/demo_a_star.gif)  
-![Demo GIF 2](images/demo_cus1.gif)
-
----
-
 ## ⚙ Requirements
 
 - **Python 3.8+** (tested on 3.12)
