@@ -206,10 +206,3 @@ python -m pip install -r requirements.txt
 - Custom hybrid algorithms (CUS1 & CUS2) for experimentation  
 
 ---
-
-## 🧩 Future Ideas *(Optional Section for You)*
-- Add graphical buttons for goal selection (Tkinter / Matplotlib UI)  
-- Extend heuristics to multi-goal averaging  
-- Export animation frames as MP4/GIF  
-
----
