@@ -13,7 +13,7 @@ It demonstrates several classic and custom search algorithms operating on a 2D w
 | `bst_visualizer.py` | Handles Binary Search Tree layout and rendering (Reingold–Tilford algorithm) |
 | `search_utils.py` | Utility functions for parsing, heuristics, and supporting logic *(if separated)* |
 | `test_cases/` | Example problem files for testing |
-| `UI_GUIDE.md` | Guide explaining the interactive controls and visualization interface |
+| `readme.md` | Guide explaining the interactive controls and visualization interface |
 
 ---
 
