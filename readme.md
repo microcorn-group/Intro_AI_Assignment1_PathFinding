@@ -1,188 +1,208 @@
+# 🧭 Intro to AI — Assignment 2a · Path Finding
 
-# Intro AI — Assignment 2a: Path Finding
+This repository contains a **Python path-finding system** with **interactive visualizations**, developed for an AI assignment.  
+It demonstrates several classic and custom search algorithms operating on a 2D weighted graph with a **Binary Search Tree (BST)** showing exploration order — all visualized side-by-side.
 
-This repository contains a path-finding assignment implemented in Python. The code demonstrates several uninformed and informed search algorithms (DFS, BFS, Greedy Best-First Search, A*) on a graph with an **interactive step-by-step visualization** and a Binary Search Tree (BST) showing the search order.
+---
 
-## Contents
+## 📂 Contents
 
-- `search.py` — Main program implementing:
-	- Depth-First Search (DFS)
-	- Breadth-First Search (BFS)
-	- Greedy Best-First Search (GBFS)
-	- A* Search (A*)
-	- Two custom method aliases (`CUS1`, `CUS2`) that map to DFS and A* respectively
-	- **🎮 Interactive UI with step-by-step controls** (Back, Pause/Resume, Forward, Restart)
-	- **Dual visualization** - Graph on left, Search Tree (BST) on right
-	- **Red exploration path** showing algorithm's search progression
-	- **Green final path** overlaid on exploration
-	- **Video-like progress bar** with percentage display
-	- Utilities to load a problem file, print results, and display interactive matplotlib visualization
-- `search.py` — Contains BST visualization with Reingold-Tilford layout algorithm
-- `bst_visualizer.py` — Binary Search Tree visualization with optimized node positioning
-- `PathFinder-test.txt` — Example problem file with nodes, edges, origin and destinations
-- `com_path.txt` — Complex test case with 18 nodes and multiple routing options
-- `UI_GUIDE.md` — Comprehensive guide for using the interactive controls
+| File | Description |
+|-------|--------------|
+| `search.py` | Main program implementing all search algorithms, visualization logic, and interactive UI |
+| `bst_visualizer.py` | Handles Binary Search Tree layout and rendering (Reingold–Tilford algorithm) |
+| `search_utils.py` | Utility functions for parsing, heuristics, and supporting logic *(if separated)* |
+| `test_cases/` | Example problem files for testing |
+| `readme.md` | Guide explaining the interactive controls and visualization interface |
 
-## Problem file format
+---
 
-The problem files are plain text and contain four sections: `Nodes:`, `Edges:`, `Origin:`, and `Destinations:`. Sections are case-sensitive and should appear exactly as shown. Example (from `PathFinder-test.txt`):
+## 🔍 Implemented Algorithms
 
+| Type | Method | Description |
+|-------|--------|-------------|
+| **Uninformed** | `DFS` | Depth-First Search – explores deeply before backtracking |
+|  | `BFS` | Breadth-First Search – explores all neighbors level by level |
+| **Informed** | `GBFS` | Greedy Best-First Search – selects node with smallest heuristic value |
+|  | `A*` | A-Star Search – balances cost (g) and heuristic (h) for optimal paths |
+| **Custom (Hybrid)** | `CUS1` | **Uniform Cost Search + Heuristic Tie-Break** — expands lowest g(n); uses h(n) to resolve ties |
+| **Custom (Heuristic-Weighted)** | `CUS2` | **Weighted A\*** (f = g + 1.5·h) — trades optimality for speed |
+
+All algorithms share the same visualization engine and BST construction logic.
+
+---
+
+## 🧮 Heuristic Function
+
+Euclidean distance between nodes is used for informed methods:
+
+```python
+heuristic(a, b) = sqrt((x_a - x_b)**2 + (y_a - y_b)**2)
+```
+
+---
+
+## 🗂 Problem File Format
+
+Plain-text files divided into four sections:
+
+```
 Nodes:
-1: (4,1)
-2: (2,2)
-3: (4,4)
-4: (6,3)
-5: (5,6)
-6: (7,5)
+1: (x,y)
+2: (x,y)
+...
 
 Edges:
-(2,1): 4
-(3,1): 5
-(1,3): 5
-... (each edge is written as `(from,to): cost`)
+(1,2): cost
+(2,3): cost
+...
 
 Origin:
-2
+1
 
 Destinations:
-5; 4
+5, 9, 12
+```
 
 Notes:
-- Node coordinates are used by the heuristic (Euclidean distance) and for plotting.
-- Multiple destinations can be listed separated by semicolons (`;`). The current informed algorithms (GBFS, A*) assume a single goal and will use the first destination listed for the heuristic calculation.
+- Each edge is directional.  
+- Coordinates are used both for the heuristic and graph layout.  
+- Multiple destinations can be listed separated by commas or semicolons (`5, 9, 12` or `5; 9; 12`).  
+- Empty lines and comments (`# …`) are safely ignored.
 
-## Requirements
+---
 
-- Python 3.8+ (should work with Python 3.7+, but 3.8+ is recommended)
+## 🖥 Usage
 
-All Python dependencies are listed in `requirements.txt`. It's recommended to use a virtual environment. To install the dependencies, run:
+Run from terminal:
+
+```bash
+python search.py <problem_file> <method>
+```
+
+Example:
+```bash
+python search.py ./test_cases/PathFinder-test.txt A*
+```
+
+Available methods (case-insensitive):
+
+```
+DFS, BFS, GBFS, A*, AS, CUS1, CUS2
+```
+
+---
+
+## 🧠 Output Example
+
+```
+PathFinder-test.txt A*
+Goal found: 5
+Nodes visited: 10
+Path: 2 → 3 → 5
+```
+
+After the textual output, an **interactive Matplotlib window** will open showing the search process.
+
+---
+
+## 🎮 Interactive Visualization Features
+
+### 🧩 Layout Overview
+
+| Area | Description |
+|-------|-------------|
+| **Left Panel** | Graph view – nodes, edges, costs, and live exploration |
+| **Right Panel** | Binary Search Tree – visualizes exploration order |
+| **Top Bar** | Algorithm info box (name, nodes visited, current status) |
+| **Bottom Bar** | Playback controls + progress bar (0–100%) |
+
+### 🎨 Visual Elements
+
+| Color | Meaning |
+|--------|----------|
+| 🟩 Green | Start node |
+| 🔴 Red | Goal nodes |
+| 🟧 Orange | Explored nodes |
+| ⚫ Gray | Unvisited nodes |
+| 🔺 Red lines | Exploration path |
+| 🟢 Green lines | Final solution path |
+
+### ▶ Playback Controls
+
+- ⏮ **Back** – step backward frame-by-frame  
+- ⏸ **Pause/Resume** – toggle playback  
+- ⏭ **Forward** – step forward frame-by-frame  
+- 🔁 **Restart** – replay full animation  
+
+Each step shows node visit order, progress percentage, and dynamically updates both graph and BST views.
+
+---
+
+## 🧭 Multi-Goal Visualization (New Feature)
+
+When a problem file contains multiple goals, the program now supports:
+
+### 🧾 Goal Selection Menu
+After computing all paths, the terminal displays:
+```
+Available goal nodes:
+ 1. Goal 10 | Path length = 5
+ 2. Goal 13 | Path length = 6
+ 3. Goal 15 | Path length = 7
+```
+
+You can:
+- Enter the goal number to visualize its path,  
+- or type `q` to quit.
+
+### 🔁 Choose Another Path
+After you close the visualization window, you’ll automatically return to the menu:
+
+```
+✔ Visualization closed.
+Enter another goal to visualize (1–3) or 'q' to quit:
+```
+
+---
+
+## 🧪 Example Test Files
+
+You can create your own graphs using the same format following the exanmples ubder test_cases folder.
+
+---
+
+## 🖼 Showcase Gallery
+
+### 📸 Visualization Examples
+
+![Example Screenshot 1](images/Screenshot%20From%202025-10-28%2007-32-15.png)
+![Example Screenshot 2](images/Screenshot%20From%202025-10-28%2008-12-16.png)
+![Example Screenshot 3](images/Screenshot%20From%202025-10-28%2008-13-37.png)
+![Example Screenshot 4](images/screenshot.gif)
+
+---
+
+## ⚙ Requirements
+
+- **Python 3.8+** (tested on 3.12)
+- **Dependencies:** `matplotlib`, `networkx`, `numpy`
+
+Install via:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-## Usage
+---
 
-Run the `search.py` script with two arguments: the problem filename and the search method.
+## 💡 Technical Highlights
 
-Supported methods (case-insensitive):
-- `DFS` — Depth-First Search (unweighted)
-- `BFS` — Breadth-First Search (unweighted)
-- `GBFS` — Greedy Best-First Search (weighted, uses heuristic only)
-- `A*` or `AS` — A* Search (weighted, uses f = g + h)
-- `CUS1` — Custom uninformed search (Uniform Cost Search with Tie-Breaking by Heuristic)
-- `CUS2` — Custom informed search (Weighted A* with w=1.5)
+- Dual synchronized visualization (graph + BST)  
+- Automatic and manual playback controls  
+- Reingold–Tilford BST layout for clean node placement  
+- Dynamic progress bar + percentage tracker  
+- Multi-goal exploration and selection menu  
+- Custom hybrid algorithms (CUS1 & CUS2) for experimentation  
 
-Example (bash/PowerShell):
-
-```bash
-python search.py PathFinder-test.txt DFS
-```
-
-Expected output (example):
-
-```
-PathFinder-test.txt DFS
-5 10
-2 -> 3 -> 5
-```
-
-After the textual output the program will open an **interactive matplotlib window** with comprehensive visualization features.
-
-## 🎮 Interactive Visualization Features
-
-The visualization window displays:
-
-### Layout
-- **Left Side**: Search graph with nodes, edges, and costs
-- **Right Side**: Binary Search Tree showing algorithm's exploration order
-- **Top**: Algorithm info box and legend
-- **Bottom**: Video-like progress bar with percentage, and control buttons
-
-### Visual Elements
-- **Color-coded nodes**:
-  - Green: Start node
-  - Red: Goal node(s)
-  - Orange: Explored nodes
-  - Gray: Unvisited nodes
-- **Red exploration path**: Shows the algorithm's search progression through parent-child relationships
-- **Green final path**: Overlaid on top showing the optimal solution
-- **Visit order badges**: Numbers (#1, #2, etc.) on each explored node
-- **Progress bar**: Blue while searching, green when complete, with percentage display
-
-### Control Buttons
-Located at the bottom of the window:
-- **[Back]** - Step backward through the search visualization frame-by-frame
-- **[Pause/Resume]** - Pause the animation or resume from where it stopped
-- **[Forward]** - Step forward through the search visualization frame-by-frame
-- **[Restart]** - Restart the animation from the beginning with automatic playback
-
-### Interactive Workflow
-1. **Automatic Playback**: Animation starts automatically showing each step of the algorithm
-2. **Manual Stepping**: Click Back/Forward to manually step through the search at your own pace
-3. **Pause & Inspect**: Click Pause to freeze at any point and examine the exploration state
-4. **Restart & Compare**: Click Restart to replay or run with a different algorithm
-
-## Algorithm Details
-
-### Search Algorithms Implemented
-- **DFS (Depth-First Search)**: Uninformed, explores deeply before backtracking
-- **BFS (Breadth-First Search)**: Uninformed, explores breadth-first ensuring shortest path in unweighted graphs
-- **GBFS (Greedy Best-First Search)**: Informed, uses heuristic to greedily select most promising node
-- **A* Search**: Informed, combines actual cost and heuristic (f = g + h) for optimal pathfinding
-- **CUS1 (UCS with Tie-Breaking by Heuristic)**: Hybrid, expands lowest-cost nodes first (like UCS), uses heuristic as tiebreaker when costs are equal. Maintains optimality while being more efficient than plain UCS.
-- **CUS2 (Weighted A*)**: Informed, uses weighted heuristic (f = g + 1.5·h) to trade optimality for speed
-
-### Heuristic Function
-Euclidean distance is used for informed algorithms:
-```
-heuristic(node_a, node_b) = sqrt((x_a - x_b)² + (y_a - y_b)²)
-```
-
-### Search Tree Visualization
-The BST on the right shows:
-- **Node numbering**: Visit order (#1, #2, etc.) when explored
-- **Tree structure**: Parent-child relationships from algorithm's exploration
-- **Color highlighting**: Active/inactive nodes to show progression
-- **Edge connections**: Shows how the algorithm built its search tree
-
-## Screenshots
-
-The interactive visualizer displays a comprehensive side-by-side view:
-![Screenshot1](images/Screenshot%20From%202025-10-28%2007-32-15.png)
-
-![Screenshot2](images/Screenshot%20From%202025-10-28%2008-12-16.png)
-
-![Screenshot3](images/Screenshot%20From%202025-10-28%2008-13-37.png)
-
-![Screenshot4](images/screenshot.gif)
-
-Shows the final result with the search complete. The green final path is overlaid on the red exploration path, the progress bar is at 100% (green), and all visited nodes are highlighted with their visit order numbers.
-
-### Main Visualization Window Features
-- **Left Panel**: Search graph showing nodes, edges, costs, and the exploration path
-- **Right Panel**: Binary Search Tree showing the order of node exploration
-- **Top**: Algorithm info box with current status and statistics
-- **Middle**: Legend showing color meanings and path types
-- **Bottom**: Video-like progress bar and control buttons
-
-### Key Visual Indicators
-- **Start node** (Green): Where the search begins
-- **Goal nodes** (Red): Target destinations
-- **Explored nodes** (Orange): Nodes visited during search with visit order numbers
-- **Unvisited nodes** (Gray): Nodes not yet explored
-- **Exploration path** (Red lines): Shows the search tree as it expands
-- **Final path** (Green lines): Optimal solution overlaid on exploration
-
-### Progress Tracking
-- **Video-like progress bar**: Shows search progress percentage in real-time
-- **Percentage display**: Current progress from 0% to 100%
-- **Color transition**: Blue while searching, turns green upon completion
-- **Info box**: Displays algorithm name, nodes explored, current node, and status
-
-## Notes and caveats
-
-
-- The input parser expects the exact section headers `Nodes:`, `Edges:`, `Origin:`, and `Destinations:` as shown. Empty lines are ignored.
-- The informed search implementations (GBFS and A*) currently use only the first listed destination when computing heuristic distances. If you need multi-goal heuristics, the code will need to be extended.
-- Edge definitions are directional as listed in the file (the example contains edges in both directions where appropriate). Make sure to list both (a,b) and (b,a) if you want a bidirectional connection with potentially different costs.
+---
