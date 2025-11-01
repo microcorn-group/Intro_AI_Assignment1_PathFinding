@@ -175,8 +175,6 @@ You can create your own graphs using the same format following the exanmples ubd
 ## 🖼 Showcase Gallery
 
 ### 📸 Visualization Examples
-> *(Place your screenshots here — e.g. side-by-side Graph + BST views)*  
-> Example placeholders below:
 
 ![Example Screenshot 1](images/Screenshot%20From%202025-10-28%2007-32-15.png)
 ![Example Screenshot 2](images/Screenshot%20From%202025-10-28%2008-12-16.png)
