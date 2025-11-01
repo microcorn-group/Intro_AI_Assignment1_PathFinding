@@ -2,11 +2,13 @@ import sys
 import math
 from collections import deque
 import heapq
+import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button
 from matplotlib.patches import FancyBboxPatch
 from bst_visualizer import (BST, create_bst_from_all_nodes,
+                            create_exploration_tree_from_visited_order,
                             calculate_tree_layout, setup_bst_visualization, highlight_node)
 
 # ------------------------------
@@ -44,9 +46,24 @@ def load_problem(filename):
 # HEURISTIC FUNCTION
 # ------------------------------
 def heuristic(a, b, nodes):
+    """
+    Calculate heuristic distance from node a to goal b.
+    If b is a list of goals, returns minimum distance to any goal.
+    """
     (x1, y1) = nodes[a]
-    (x2, y2) = nodes[b]
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    
+    # Handle single goal (string) or multiple goals (list)
+    if isinstance(b, str):
+        (x2, y2) = nodes[b]
+        return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    else:
+        # b is a list of goals - return minimum distance to any goal
+        min_distance = float('inf')
+        for goal in b:
+            (x2, y2) = nodes[goal]
+            distance = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+            min_distance = min(min_distance, distance)
+        return min_distance
 
 # ------------------------------
 # PRINT RESULTS
@@ -696,10 +713,11 @@ def bfs(edges, start, goal):
     return None, count, [], visited_order
 
 
-def gbfs(nodes, edges, start, goal):
-    goal = goal[0]
+def gbfs(nodes, edges, start, goals):
+    # goals can be a list of goal nodes
     frontier = []
-    heapq.heappush(frontier, (0, start, [start], None))
+    h_start = heuristic(start, goals, nodes)
+    heapq.heappush(frontier, (h_start, start, [start], None))
     visited = set()
     visited_order = []
     count = 0
@@ -709,23 +727,24 @@ def gbfs(nodes, edges, start, goal):
         count += 1
         visited_order.append((node, parent))
 
-        if node == goal:
+        if node in goals:
             return node, count, path, visited_order
 
         if node not in visited:
             visited.add(node)
             for neighbor, _ in edges.get(node, []):
                 if neighbor not in visited:
-                    h = heuristic(neighbor, goal, nodes)
+                    h = heuristic(neighbor, goals, nodes)
                     heapq.heappush(frontier, (h, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
 
-def astar(nodes, edges, start, goal):
-    goal = goal[0]
+def astar(nodes, edges, start, goals):
+    # goals can be a list of goal nodes
     frontier = []
-    heapq.heappush(frontier, (0, 0, start, [start], None))
+    h_start = heuristic(start, goals, nodes)
+    heapq.heappush(frontier, (h_start, 0, start, [start], None))
     visited = {}
     visited_order = []
     count = 0
@@ -735,14 +754,15 @@ def astar(nodes, edges, start, goal):
         count += 1
         visited_order.append((node, parent))
 
-        if node == goal:
+        if node in goals:
             return node, count, path, visited_order
 
         if node not in visited or g < visited[node]:
             visited[node] = g
             for neighbor, cost in sorted(edges.get(node, [])):
                 g2 = g + cost
-                f2 = g2 + heuristic(neighbor, goal, nodes)
+                h = heuristic(neighbor, goals, nodes)
+                f2 = g2 + h
                 heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
@@ -767,8 +787,8 @@ def astar(nodes, edges, start, goal):
 #   - The frontier stores tuples of (cost, heuristic, node, path, parent).
 #   - When costs are equal, nodes closer to goal (lower h) are expanded first.
 #   - Guarantees optimal solution like UCS, but explores fewer nodes due to heuristic guidance.
-def ucs_with_heuristic_tiebreak(nodes, edges, start, goal):
-    goal = goal[0]
+def ucs_with_heuristic_tiebreak(nodes, edges, start, goals):
+    # goals can be a list of goal nodes
     frontier = [(0, 0, start, [start], None)]
     visited = set()
     visited_order = []
@@ -779,7 +799,7 @@ def ucs_with_heuristic_tiebreak(nodes, edges, start, goal):
         count += 1
         visited_order.append((node, parent))
 
-        if node == goal:
+        if node in goals:
             return node, count, path, visited_order
 
         if node not in visited:
@@ -787,15 +807,16 @@ def ucs_with_heuristic_tiebreak(nodes, edges, start, goal):
             for neighbor, edge_cost in edges.get(node, []):
                 if neighbor not in visited:
                     new_cost = cost + edge_cost
-                    h_neighbor = heuristic(neighbor, goal, nodes)
+                    h_neighbor = heuristic(neighbor, goals, nodes)
                     heapq.heappush(frontier, (new_cost, h_neighbor, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
-def custom_uninformed(nodes, edges, start, goal):
+def custom_uninformed(nodes, edges, start, goals):
     # Wrapper for the CUS1 algorithm
     # Calls Uniform Cost Search with Tie-Breaking by Heuristic
-    return ucs_with_heuristic_tiebreak(nodes, edges, start, [goal] if isinstance(goal, str) else goal)
+    # goals is already a list, no conversion needed
+    return ucs_with_heuristic_tiebreak(nodes, edges, start, goals)
 
 # ------------------------------
 # CUSTOM INFORMED SEARCH (CUS2) – WEIGHTED A* SEARCH
@@ -820,8 +841,8 @@ def custom_uninformed(nodes, edges, start, goal):
 #   - Uses a priority queue ordered by the weighted f(n) value.
 #   - Can trade accuracy for speed depending on the weight chosen.
 #   - Ideal for large graphs where exact optimality is less important than faster performance.
-def weighted_astar(nodes, edges, start, goal, weight=1.5):
-    goal = goal[0]
+def weighted_astar(nodes, edges, start, goals, weight=1.5):
+    # goals can be a list of goal nodes
     frontier = [(0, 0, start, [start], None)]
     visited = {}
     visited_order = []
@@ -832,23 +853,207 @@ def weighted_astar(nodes, edges, start, goal, weight=1.5):
         count += 1
         visited_order.append((node, parent))
 
-        if node == goal:
+        if node in goals:
             return node, count, path, visited_order
 
         if node not in visited or g < visited[node]:
             visited[node] = g
             for neighbor, cost in edges.get(node, []):
                 g2 = g + cost
-                f2 = g2 + weight * heuristic(neighbor, goal, nodes)
+                h = heuristic(neighbor, goals, nodes)
+                f2 = g2 + weight * h
                 heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
 
     return None, count, [], visited_order
 
 
-def custom_informed(nodes, edges, start, goal):
+def custom_informed(nodes, edges, start, goals):
     # Wrapper for the CUS2 algorithm
     # Calls the Weighted A* implementation with weight = 1.5
-    return weighted_astar(nodes, edges, start, goal, weight=1.5)
+    # goals is already a list, no conversion needed
+    return weighted_astar(nodes, edges, start, goals, weight=1.5)
+
+# ------------------------------
+# MULTI-GOAL SEARCH (Sequential Visualization Support)
+# ------------------------------
+def bfs_all(edges, start, goals):
+    """Breadth-first search variant that finds all goal paths."""
+    queue = deque([(start, [start], None)])
+    visited = set()
+    visited_order = []
+    found_paths = {}  # goal -> path
+    count = 0
+
+    while queue:
+        node, path, parent = queue.popleft()
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            # Optional: stop if all goals found
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited:
+            visited.add(node)
+            for neighbor, _ in sorted(edges.get(node, [])):
+                if neighbor not in visited:
+                    queue.append((neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
+
+
+def dfs_all(edges, start, goals):
+    """Depth-first search variant that finds all goal paths."""
+    stack = [(start, [start], None)]
+    visited = set()
+    visited_order = []
+    found_paths = {}
+    count = 0
+
+    while stack:
+        node, path, parent = stack.pop()
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited:
+            visited.add(node)
+            for neighbor, _ in sorted(edges.get(node, []), reverse=True):
+                if neighbor not in visited:
+                    stack.append((neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
+
+
+def gbfs_all(nodes, edges, start, goals):
+    """Greedy Best-First variant for multiple goals."""
+    frontier = []
+    h_start = heuristic(start, goals, nodes)
+    heapq.heappush(frontier, (h_start, start, [start], None))
+    visited = set()
+    visited_order = []
+    found_paths = {}
+    count = 0
+
+    while frontier:
+        _, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited:
+            visited.add(node)
+            for neighbor, _ in edges.get(node, []):
+                if neighbor not in visited:
+                    h = heuristic(neighbor, goals, nodes)
+                    heapq.heappush(frontier, (h, neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
+
+
+def astar_all(nodes, edges, start, goals):
+    """A* variant that finds all goal paths before stopping."""
+    frontier = []
+    h_start = heuristic(start, goals, nodes)
+    heapq.heappush(frontier, (h_start, 0, start, [start], None))
+    visited = {}
+    visited_order = []
+    found_paths = {}
+    count = 0
+
+    while frontier:
+        f, g, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited or g < visited[node]:
+            visited[node] = g
+            for neighbor, cost in edges.get(node, []):
+                g2 = g + cost
+                h = heuristic(neighbor, goals, nodes)
+                f2 = g2 + h
+                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
+
+def ucs_with_heuristic_tiebreak_all(nodes, edges, start, goals):
+    """
+    UCS with heuristic tiebreak — multi-goal variant.
+    Returns: found_paths (dict goal->path), count, visited_order
+    """
+    frontier = [(0, 0, start, [start], None)]
+    visited = set()
+    visited_order = []
+    found_paths = {}
+    count = 0
+
+    while frontier:
+        cost, h, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        # If node is any of the goals and not already recorded, save its path
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited:
+            visited.add(node)
+            for neighbor, edge_cost in edges.get(node, []):
+                if neighbor not in visited:
+                    new_cost = cost + edge_cost
+                    h_neighbor = heuristic(neighbor, goals, nodes)
+                    heapq.heappush(frontier, (new_cost, h_neighbor, neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
+
+
+def weighted_astar_all(nodes, edges, start, goals, weight=1.5):
+    """
+    Weighted A* multi-goal variant (CUS2).
+    Returns: found_paths (dict goal->path), count, visited_order
+    """
+    frontier = [(0, 0, start, [start], None)]
+    visited = {}
+    visited_order = []
+    found_paths = {}
+    count = 0
+
+    while frontier:
+        f, g, node, path, parent = heapq.heappop(frontier)
+        count += 1
+        visited_order.append((node, parent))
+
+        if node in goals and node not in found_paths:
+            found_paths[node] = path
+            if len(found_paths) == len(goals):
+                break
+
+        if node not in visited or g < visited[node]:
+            visited[node] = g
+            for neighbor, cost in edges.get(node, []):
+                g2 = g + cost
+                h = heuristic(neighbor, goals, nodes)
+                f2 = g2 + weight * h
+                heapq.heappush(frontier, (f2, g2, neighbor, path + [neighbor], node))
+
+    return found_paths, count, visited_order
 
 # ------------------------------
 # MAIN EXECUTION
@@ -861,35 +1066,100 @@ if __name__ == "__main__":
     filename, method = sys.argv[1], sys.argv[2].upper()
     nodes, edges, origin, destinations = load_problem(filename)
 
+    multi_goal = len(destinations) > 1
+
     if method == "DFS":
-        goal, count, path, visited_order = dfs(edges, origin, destinations)
+        if multi_goal:
+            found_paths, count, visited_order = dfs_all(edges, origin, destinations)
+        else:
+            goal, count, path, visited_order = dfs(edges, origin, destinations)
     elif method == "BFS":
-        goal, count, path, visited_order = bfs(edges, origin, destinations)
+        if multi_goal:
+            found_paths, count, visited_order = bfs_all(edges, origin, destinations)
+        else:
+            goal, count, path, visited_order = bfs(edges, origin, destinations)
     elif method == "GBFS":
-        goal, count, path, visited_order = gbfs(nodes, edges, origin, destinations)
+        if multi_goal:
+            found_paths, count, visited_order = gbfs_all(nodes, edges, origin, destinations)
+        else:
+            goal, count, path, visited_order = gbfs(nodes, edges, origin, destinations)
     elif method in ("A*", "AS"):
-        goal, count, path, visited_order = astar(nodes, edges, origin, destinations)
+        if multi_goal:
+            found_paths, count, visited_order = astar_all(nodes, edges, origin, destinations)
+        else:
+            goal, count, path, visited_order = astar(nodes, edges, origin, destinations)
     elif method in ("UCS", "CUS1"):
-        goal, count, path, visited_order = custom_uninformed(nodes, edges, origin, destinations)
+        if multi_goal:
+            found_paths, count, visited_order = ucs_with_heuristic_tiebreak_all(nodes, edges, origin, destinations)
+        else:
+            goal, count, path, visited_order = custom_uninformed(nodes, edges, origin, destinations)
     elif method in ("WA*", "CUS2"):
-        goal, count, path, visited_order = custom_informed(nodes, edges, origin, destinations)
-    else:
-        print(f"Unknown method: {method}")
-        print("Available methods: DFS, BFS, GBFS, A*, UCS/CUS1, WA*/CUS2")
-        sys.exit(1)
+        if multi_goal:
+            found_paths, count, visited_order = weighted_astar_all(nodes, edges, origin, destinations, weight=1.5)
+        else:
+            goal, count, path, visited_order = custom_informed(nodes, edges, origin, destinations)
 
 
-    if goal:
-        print_results(filename, method, goal, count, path)
-        
-        # Create full search tree from ALL graph nodes (not just visited)
-        bst = create_bst_from_all_nodes(list(nodes.keys()))
-        
-        # Show both visualizations side-by-side
-        print("\n" + "="*60)
-        print("Building and visualizing Full Search Tree...")
-        print("="*60)
-        visualize_search(nodes, edges, visited_order, path, method, origin, destinations, bst=bst)
+   # --- Visualization and Results ---
+   # --- Visualization and Results ---
+    if multi_goal:
+        print("\nMultiple goals detected in this graph.\n")
+
+        # Display all goals found
+        print("Available goal nodes and their corresponding paths:\n")
+        for idx, (goal_node, goal_path) in enumerate(found_paths.items(), start=1):
+            print(f" {idx}. Goal: {goal_node}  |  Path length: {len(goal_path)} nodes")
+
+        bst = create_exploration_tree_from_visited_order(visited_order, origin)
+
+        while True:
+            # --- Goal selection menu ---
+            try:
+                choice = input(f"\nEnter the number of the goal you want to visualize (1–{len(found_paths)}), or 'q' to quit: ").strip()
+                if choice.lower() == 'q':
+                    print("\n Exiting visualization. Goodbye!\n")
+                    break
+
+                choice = int(choice)
+                if not (1 <= choice <= len(found_paths)):
+                    print(f" Invalid choice. Please enter a number between 1 and {len(found_paths)}.")
+                    continue
+            except ValueError:
+                print(" Please enter a valid number or 'q' to quit.")
+                continue
+
+            # --- Select chosen goal ---
+            selected_goal = list(found_paths.keys())[choice - 1]
+            selected_path = found_paths[selected_goal]
+            print(f"\n You selected Goal {choice}: '{selected_goal}'")
+            print_results(filename, method, selected_goal, count, selected_path)
+
+            # --- Display brief transition notice before visualization ---
+            plt.figure(figsize=(6, 2))
+            plt.text(0.5, 0.5,
+                    f"Starting visualization for Goal {choice}: {selected_goal}",
+                    ha='center', va='center', fontsize=12, fontweight='bold', color='#1565C0')
+            plt.axis('off')
+            plt.tight_layout()
+            plt.show(block=False)
+            plt.pause(1.8)
+            plt.close()
+
+            # --- Run visualization for the chosen goal ---
+            visualize_search(nodes, edges, visited_order, selected_path,
+                            f"{method} — Goal {choice}: {selected_goal}",
+                            origin, destinations, bst=bst)
+
+            # --- Pause after visualization closes ---
+            time.sleep(0.6)
+            print("\n✔ Visualization closed.")
+            # Loop back for another choice or quit
+
     else:
-        print(f"{filename} {method}\nNo path found.")
+        if goal:
+            print_results(filename, method, goal, count, path)
+            bst = create_exploration_tree_from_visited_order(visited_order, origin)
+            visualize_search(nodes, edges, visited_order, path, method, origin, destinations, bst=bst)
+        else:
+            print(f"{filename} {method}\nNo path found.")
 # ------------------------------

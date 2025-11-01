@@ -101,6 +101,56 @@ def create_bst_from_all_nodes(all_nodes):
     return bst
 
 
+def create_exploration_tree_from_visited_order(visited_order, start_node):
+    """
+    Create an accurate exploration tree from the visited_order list.
+    
+    Args:
+        visited_order: List of tuples (node, parent) showing exploration relationships
+        start_node: The start node (root of exploration tree)
+    
+    Returns:
+        BST object representing the actual search tree
+    """
+    if not visited_order:
+        return None
+    
+    bst = BST()
+    
+    # Create a map of node_value -> BSTNode for quick lookup
+    node_map = {}
+    
+    # First pass: Create all nodes and set the root
+    for node, parent in visited_order:
+        if node not in node_map:
+            node_map[node] = BSTNode(node)
+    
+    bst.root = node_map.get(start_node)
+    if not bst.root:
+        return None
+    
+    # Second pass: Build parent-child relationships
+    for node, parent in visited_order:
+        if parent is None:
+            # This is the root
+            continue
+        
+        child_node = node_map.get(node)
+        parent_node = node_map.get(parent)
+        
+        if child_node and parent_node:
+            # Add child to parent (simple binary approach: left/right alternating)
+            if parent_node.left is None:
+                parent_node.left = child_node
+            elif parent_node.right is None:
+                parent_node.right = child_node
+            else:
+                # For more than 2 children, add to left (BST limitation for n-ary trees)
+                pass
+    
+    return bst
+
+
 def create_bst_from_visited_order(visited_order):
     """
     Create a BST from the actual visited order of the search algorithm.
